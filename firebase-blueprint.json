@@ -1,0 +1,40 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile with account balance",
+      "type": "object",
+      "properties": {
+        "fullName": { "type": "string" },
+        "userName": { "type": "string" },
+        "phoneNumber": { "type": "string" },
+        "balance": { "type": "number" },
+        "pin": { "type": "string" }
+      },
+      "required": ["fullName", "userName", "phoneNumber", "balance", "pin"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Financial transaction",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "amount": { "type": "number" },
+        "type": { "type": "string" },
+        "recipient": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "amount", "type", "timestamp"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": { "$ref": "User" },
+      "description": "Individual user document"
+    },
+    "users/{userId}/transactions/{transactionId}": {
+      "schema": { "$ref": "Transaction" },
+      "description": "User transactions"
+    }
+  }
+}

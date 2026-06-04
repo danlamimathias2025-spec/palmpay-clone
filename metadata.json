@@ -1,6 +1,6 @@
 {
-  "name": "Profile App",
-  "description": "Displays profile name and phone number.",
+  "name": "TENN MFB",
+  "description": "Fintech mobile dashboard for managing finances, loans, and services.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

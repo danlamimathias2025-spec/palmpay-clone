@@ -44,7 +44,11 @@ export default function TransferModal({ balance, setBalance, onClose, userProfil
         await addDoc(transactionsRef, {
             amount,
             type: 'transfer',
-            recipient: formData.accountNumber,
+            accountNumber: formData.accountNumber,
+            accountName: formData.accountName,
+            bank: formData.bank,
+            senderName: userProfile.fullName,
+            senderAccountNumber: userProfile.phoneNumber, // Assuming phoneNumber is the account number
             timestamp: serverTimestamp()
         });
         

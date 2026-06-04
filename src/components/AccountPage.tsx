@@ -4,7 +4,7 @@ import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 
 export default function AccountPage({ userProfile, setUserProfile, onLogout }: { userProfile: any, setUserProfile: any, onLogout: () => void }) {
-  const [localProfile, setLocalProfile] = useState({ tier: 'Tier 1', ...userProfile });
+  const [localProfile, setLocalProfile] = useState({ tier: 'Tier 1', pin: '', password: '', ...userProfile });
   const [saving, setSaving] = useState(false);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -91,9 +91,16 @@ export default function AccountPage({ userProfile, setUserProfile, onLogout }: {
                 <span className='font-bold text-gray-800 dark:text-white'>Unlimited</span>
             </div>
         </div>
-        <div className="bg-white dark:bg-gray-900 p-4 rounded-xl flex items-center justify-between border border-gray-100 dark:border-gray-800">
-           <span>Settings (Password & Security)</span>
-           <ChevronRight size={16} className="text-gray-500"/>
+        <div className="bg-white dark:bg-gray-900 p-4 rounded-xl space-y-4 border border-gray-100 dark:border-gray-800">
+             <h4 className="font-semibold text-gray-900 dark:text-white">Security Settings</h4>
+             <div className='flex justify-between items-center'>
+                 <span>Change PIN</span>
+                 <input type="password" name="pin" value={localProfile.pin} onChange={handleInputChange} placeholder="New PIN" className="text-right bg-transparent text-gray-900 dark:text-white font-bold w-24" />
+             </div>
+             <div className='flex justify-between items-center'>
+                 <span>Change Password</span>
+                 <input type="password" name="password" value={localProfile.password} onChange={handleInputChange} placeholder="New Password" className="text-right bg-transparent text-gray-900 dark:text-white font-bold w-32" />
+             </div>
         </div>
         <div className="bg-white dark:bg-gray-900 p-4 rounded-xl flex items-center justify-between border border-gray-100 dark:border-gray-800">
            <span>Username</span>

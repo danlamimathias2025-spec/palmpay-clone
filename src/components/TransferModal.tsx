@@ -15,11 +15,22 @@ export default function TransferModal({ balance, setBalance, onClose, userProfil
   const [formData, setFormData] = useState({ amount: '', accountNumber: '', accountName: '', bankCode: '', pin: '' });
   const [loading, setLoading] = useState(false);
   const [banks, setBanks] = useState<{name: string, code: string}[]>([]);
+  const [loadingBanks, setLoadingBanks] = useState(true);
   const [verifying, setVerifying] = useState(false);
   const [accountError, setAccountError] = useState('');
 
   React.useEffect(() => {
-    fetch('/api/banks').then(res => res.json()).then(setBanks);
+    fetch('/api/banks')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+            setBanks(data);
+        } else {
+            console.error("Banks data is not an array:", data);
+        }
+      })
+      .catch(err => console.error("Error fetching banks:", err))
+      .finally(() => setLoadingBanks(false));
   }, []);
 
   const resolveAccount = async (accountNumber: string, bankCode: string) => {
@@ -133,9 +144,15 @@ export default function TransferModal({ balance, setBalance, onClose, userProfil
         {userProfile.phoneNumber ? (
         <form onSubmit={handleSubmit} className="space-y-4">
           <input type="number" placeholder="Amount (₦)" className="w-full p-3 rounded-xl border dark:bg-gray-800" onChange={e => handleInputChange('amount', e.target.value)} required />
-          <select className="w-full p-3 rounded-xl border dark:bg-gray-800" onChange={e => handleInputChange('bankCode', e.target.value)} required>
-            <option value="">Select Bank</option>
-            {banks.map((bank, index) => <option key={`${bank.code}-${index}`} value={bank.code}>{bank.name}</option>)}
+          <select disabled={loadingBanks} className="w-full p-3 rounded-xl border dark:bg-gray-800" onChange={e => handleInputChange('bankCode', e.target.value)} required>
+            {loadingBanks ? (
+              <option value="">Loading banks...</option>
+            ) : (
+              <>
+                <option value="">Select Bank</option>
+                {banks.map((bank, index) => <option key={`${bank.code}-${index}`} value={bank.code}>{bank.name}</option>)}
+              </>
+            )}
           </select>
           <input type="text" placeholder="Account Number" maxLength={10} className="w-full p-3 rounded-xl border dark:bg-gray-800" onChange={e => handleInputChange('accountNumber', e.target.value)} required />
           

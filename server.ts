@@ -42,6 +42,10 @@ async function startServer() {
         headers: { 'Authorization': `Bearer ${process.env.BANK_API_KEY}` }
       });
       const data = await response.json();
+      if (!response.ok) {
+        console.error("Paystack API error:", data);
+        return res.status(response.status).json({ error: "Paystack API error", details: data });
+      }
       res.json(data.data);
     } catch (error) {
       console.error("Error fetching banks:", error);

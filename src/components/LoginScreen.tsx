@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { ChevronLeft } from 'lucide-react';
 
 export default function LoginScreen({ onLogin, onSwitchToRegister }: { onLogin: (phone: string, password: string) => void, onSwitchToRegister: () => void }) {

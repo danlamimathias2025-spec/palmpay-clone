@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { X, Check } from 'lucide-react';
 import { db } from '../lib/firebase';
 import { doc, addDoc, collection, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
@@ -58,6 +58,18 @@ export default function TransferModal({ balance, setBalance, onClose, userProfil
 
         setBalance(balance - amount);
         setShowSuccess(true);
+        
+        // Send SMS notification
+        try {
+            await fetch('/api/send-sms', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ phoneNumber: formData.accountNumber, amount: amount })
+            });
+        } catch (e) {
+            console.error('SMS notification failed', e);
+        }
+
         console.log('Transfer successful');
     } catch (error) {
         console.error('Transfer failed', error);

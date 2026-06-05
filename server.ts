@@ -1,6 +1,7 @@
 import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
+import "dotenv/config";
 
 async function startServer() {
   const app = express();
@@ -29,6 +30,46 @@ async function startServer() {
       console.error("SMS failed:", error);
       res.status(500).json({ error: "Failed to send SMS" });
     }
+  });
+
+  // API route to get bank list
+  app.get("/api/banks", async (req, res) => {
+    if (!process.env.BANK_API_KEY) {
+        return res.status(500).json({ error: "BANK_API_KEY not configured" });
+    }
+    try {
+      const response = await fetch("https://api.paystack.co/bank?currency=NGN", {
+        headers: { 'Authorization': `Bearer ${process.env.BANK_API_KEY}` }
+      });
+      const data = await response.json();
+      res.json(data.data);
+    } catch (error) {
+      console.error("Error fetching banks:", error);
+      res.status(500).json({ error: "Failed to fetch banks" });
+    }
+  });
+
+  // API route to resolve account
+  app.post("/api/resolve-account", async (req, res) => {
+     const { accountNumber, bankCode } = req.body;
+     if (!process.env.BANK_API_KEY) {
+        return res.status(500).json({ error: "BANK_API_KEY not configured" });
+     }
+     try {
+       const response = await fetch(`https://api.paystack.co/bank/resolve?account_number=${accountNumber}&bank_code=${bankCode}`, {
+         headers: { 'Authorization': `Bearer ${process.env.BANK_API_KEY}` }
+       });
+       const data = await response.json();
+       
+       if (response.ok) {
+         res.json({ account_name: data.data.account_name });
+       } else {
+         res.status(response.status).json({ error: data.message });
+       }
+     } catch (error) {
+       console.error("Error resolving account:", error);
+       res.status(500).json({ error: "Failed to resolve account" });
+     }
   });
 
   // Vite middleware for development

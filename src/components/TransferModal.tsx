@@ -12,32 +12,66 @@ const banks = [
 
 export default function TransferModal({ balance, setBalance, onClose, userProfile }: { balance: number, setBalance: (b: number) => void, onClose: () => void, userProfile: any }) {
   const [showSuccess, setShowSuccess] = useState(false);
-  const [formData, setFormData] = useState({ amount: '', accountNumber: '', accountName: '', bank: '', pin: '' });
+  const [formData, setFormData] = useState({ amount: '', accountNumber: '', accountName: '', bankCode: '', pin: '' });
   const [loading, setLoading] = useState(false);
+  const [banks, setBanks] = useState<{name: string, code: string}[]>([]);
+  const [verifying, setVerifying] = useState(false);
+  const [accountError, setAccountError] = useState('');
 
+  React.useEffect(() => {
+    fetch('/api/banks').then(res => res.json()).then(setBanks);
+  }, []);
+
+  const resolveAccount = async (accountNumber: string, bankCode: string) => {
+    if (accountNumber.length !== 10 || !bankCode) return;
+    setVerifying(true);
+    setAccountError('');
+    try {
+        const res = await fetch('/api/resolve-account', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ accountNumber, bankCode })
+        });
+        if (res.ok) {
+            const data = await res.json();
+            setFormData(prev => ({ ...prev, accountName: data.account_name }));
+        } else {
+            setAccountError('Account resolution failed');
+            setFormData(prev => ({ ...prev, accountName: '' }));
+        }
+    } catch {
+        setAccountError('Server error');
+    } finally {
+        setVerifying(false);
+    }
+  };
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    const newFormData = { ...formData, [field]: value };
+    if ((field === 'accountNumber' || field === 'bankCode')) {
+        if (newFormData.accountNumber.length === 10 && newFormData.bankCode) {
+            resolveAccount(newFormData.accountNumber, newFormData.bankCode);
+        }
+    }
+  };
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('handleSubmit called', formData);
     setLoading(true);
-    console.log('Submitting transfer...', formData, balance);
     const amount = Number(formData.amount);
     if (amount > balance) {
         alert('Insufficient funds');
-        console.log('Insufficient funds');
         setLoading(false);
         return;
     }
-    // Changed PIN check to use userProfile.pin
     if (formData.pin !== userProfile.pin) {
         alert('Incorrect PIN');
-        console.log('Incorrect PIN', formData.pin, userProfile.pin);
         setLoading(false);
         return;
     }
 
     try {
-        const userId = userProfile.phoneNumber; // Using phone number as userId for now
-        console.log('Using userId:', userId);
+        const userId = userProfile.phoneNumber;
         const userRef = doc(db, 'users', userId);
         const transactionsRef = collection(userRef, 'transactions');
         
@@ -46,9 +80,9 @@ export default function TransferModal({ balance, setBalance, onClose, userProfil
             type: 'transfer',
             accountNumber: formData.accountNumber,
             accountName: formData.accountName,
-            bank: formData.bank,
+            bankCode: formData.bankCode,
             senderName: userProfile.fullName,
-            senderAccountNumber: userProfile.phoneNumber, // Assuming phoneNumber is the account number
+            senderAccountNumber: userProfile.phoneNumber,
             timestamp: serverTimestamp()
         });
         
@@ -59,7 +93,6 @@ export default function TransferModal({ balance, setBalance, onClose, userProfil
         setBalance(balance - amount);
         setShowSuccess(true);
         
-        // Send SMS notification
         try {
             await fetch('/api/send-sms', {
                 method: 'POST',
@@ -69,8 +102,6 @@ export default function TransferModal({ balance, setBalance, onClose, userProfil
         } catch (e) {
             console.error('SMS notification failed', e);
         }
-
-        console.log('Transfer successful');
     } catch (error) {
         console.error('Transfer failed', error);
         alert('Transfer failed. Please try again.');
@@ -101,15 +132,19 @@ export default function TransferModal({ balance, setBalance, onClose, userProfil
         <h2 className="text-xl font-bold mb-6 text-gray-900 dark:text-white">Fund Transfer</h2>
         {userProfile.phoneNumber ? (
         <form onSubmit={handleSubmit} className="space-y-4">
-          <input type="number" placeholder="Amount (₦)" className="w-full p-3 rounded-xl border dark:bg-gray-800" onChange={e => setFormData({...formData, amount: e.target.value})} required />
-          <input type="text" placeholder="Account Number" className="w-full p-3 rounded-xl border dark:bg-gray-800" onChange={e => setFormData({...formData, accountNumber: e.target.value})} required />
-          <input type="text" placeholder="Account Name" className="w-full p-3 rounded-xl border dark:bg-gray-800" onChange={e => setFormData({...formData, accountName: e.target.value})} required />
-          <select className="w-full p-3 rounded-xl border dark:bg-gray-800" onChange={e => setFormData({...formData, bank: e.target.value})} required>
+          <input type="number" placeholder="Amount (₦)" className="w-full p-3 rounded-xl border dark:bg-gray-800" onChange={e => handleInputChange('amount', e.target.value)} required />
+          <select className="w-full p-3 rounded-xl border dark:bg-gray-800" onChange={e => handleInputChange('bankCode', e.target.value)} required>
             <option value="">Select Bank</option>
-            {banks.map(bank => <option key={bank} value={bank}>{bank}</option>)}
+            {banks.map((bank, index) => <option key={`${bank.code}-${index}`} value={bank.code}>{bank.name}</option>)}
           </select>
-          <input type="password" placeholder="4-digit PIN" maxLength={4} className="w-full p-3 rounded-xl border dark:bg-gray-800" onChange={e => setFormData({...formData, pin: e.target.value})} required />
-          <button type="submit" disabled={loading} className="w-full p-3 rounded-xl bg-blue-600 text-white font-semibold mt-4">
+          <input type="text" placeholder="Account Number" maxLength={10} className="w-full p-3 rounded-xl border dark:bg-gray-800" onChange={e => handleInputChange('accountNumber', e.target.value)} required />
+          
+          {verifying && <p className="text-sm text-blue-600">Fetching account name...</p>}
+          {accountError && <p className="text-sm text-red-500">{accountError}</p>}
+          {formData.accountName && <p className="text-sm text-green-600 font-semibold">{formData.accountName}</p>}
+          
+          <input type="password" placeholder="4-digit PIN" maxLength={4} className="w-full p-3 rounded-xl border dark:bg-gray-800" onChange={e => handleInputChange('pin', e.target.value)} required />
+          <button type="submit" disabled={loading || verifying || !!accountError || !formData.accountName} className="w-full p-3 rounded-xl bg-blue-600 text-white font-semibold mt-4 disabled:bg-gray-400">
             {loading ? 'Processing...' : 'Transfer'}
           </button>
         </form>

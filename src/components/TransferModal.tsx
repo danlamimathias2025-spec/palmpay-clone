@@ -20,7 +20,7 @@ export default function TransferModal({ balance, setBalance, onClose, userProfil
   const [accountError, setAccountError] = useState('');
 
   React.useEffect(() => {
-    fetch('/api/banks')
+    fetch(window.location.protocol + '//' + window.location.host + '/api/banks')
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) {
@@ -38,7 +38,7 @@ export default function TransferModal({ balance, setBalance, onClose, userProfil
     setVerifying(true);
     setAccountError('');
     try {
-        const res = await fetch('/api/resolve-account', {
+        const res = await fetch(window.location.protocol + '//' + window.location.host + '/api/resolve-account', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ accountNumber, bankCode })
@@ -105,7 +105,7 @@ export default function TransferModal({ balance, setBalance, onClose, userProfil
         setShowSuccess(true);
         
         try {
-            await fetch('/api/send-sms', {
+            await fetch(window.location.protocol + '//' + window.location.host + '/api/send-sms', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ phoneNumber: formData.accountNumber, amount: amount })

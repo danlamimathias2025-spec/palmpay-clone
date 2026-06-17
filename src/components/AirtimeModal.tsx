@@ -75,8 +75,13 @@ export default function AirtimeModal({ balance, setBalance, onClose, userProfile
             {operators.map(op => <option key={op} value={op}>{op}</option>)}
           </select>
           <input type="number" placeholder="Amount (₦)" className="w-full p-3 rounded-xl border dark:bg-gray-800" onChange={e => setFormData({...formData, amount: e.target.value})} required />
-          <button type="submit" disabled={loading} className="w-full p-3 rounded-xl bg-blue-600 text-white font-semibold mt-4">
-            {loading ? 'Processing...' : 'Buy Airtime'}
+          <button type="submit" disabled={loading} className="w-full p-3 rounded-xl bg-blue-600 text-white font-semibold mt-4 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-75">
+            {loading ? (
+              <>
+                <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                Processing...
+              </>
+            ) : 'Buy Airtime'}
           </button>
         </form>
       </div>

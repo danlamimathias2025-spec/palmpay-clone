@@ -45,8 +45,17 @@ export default function AccountPage({ userProfile, setUserProfile, onLogout }: {
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Account</h2>
-        <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl font-semibold disabled:bg-gray-400">
-            <Save size={16} /> {saving ? 'Saving...' : 'Save'}
+        <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl font-semibold disabled:bg-gray-400 cursor-pointer disabled:opacity-75">
+            {saving ? (
+              <>
+                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                Saving...
+              </>
+            ) : (
+              <>
+                <Save size={16} /> Save
+              </>
+            )}
         </button>
       </div>
       <div className="bg-linear-to-b from-blue-500 to-blue-700 rounded-3xl p-6 text-white text-center mb-6">

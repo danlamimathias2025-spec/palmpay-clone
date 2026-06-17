@@ -85,8 +85,13 @@ export default function DataModal({ balance, setBalance, onClose, userProfile }:
             <option value="">Select Plan</option>
             {dataPlans.map(p => <option key={p.name} value={p.name}>{p.name}</option>)}
           </select>
-          <button type="submit" disabled={loading} className="w-full p-3 rounded-xl bg-blue-600 text-white font-semibold mt-4">
-            {loading ? 'Processing...' : 'Buy Data'}
+          <button type="submit" disabled={loading} className="w-full p-3 rounded-xl bg-blue-600 text-white font-semibold mt-4 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-75">
+            {loading ? (
+              <>
+                <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                Processing...
+              </>
+            ) : 'Buy Data'}
           </button>
         </form>
       </div>

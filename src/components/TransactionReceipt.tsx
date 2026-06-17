@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { ChevronLeft } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
@@ -6,27 +6,43 @@ import { jsPDF } from 'jspdf';
 export default function TransactionReceipt({ transaction, onClose }: { transaction: any, onClose: () => void }) {
   const isTransfer = transaction.type === 'transfer';
   const receiptRef = useRef<HTMLDivElement>(null);
+  const [sharingImage, setSharingImage] = useState(false);
+  const [sharingPdf, setSharingPdf] = useState(false);
 
   const handleShareAsImage = async () => {
     if (!receiptRef.current) return;
-    const canvas = await html2canvas(receiptRef.current);
-    const dataURL = canvas.toDataURL('image/png');
-    const link = document.createElement('a');
-    link.href = dataURL;
-    link.download = `receipt_${transaction.amount}.png`;
-    link.click();
+    setSharingImage(true);
+    try {
+        const canvas = await html2canvas(receiptRef.current);
+        const dataURL = canvas.toDataURL('image/png');
+        const link = document.createElement('a');
+        link.href = dataURL;
+        link.download = `receipt_${transaction.amount}.png`;
+        link.click();
+    } catch (e) {
+        console.error(e);
+    } finally {
+        setSharingImage(false);
+    }
   };
 
   const handleShareAsPDF = async () => {
     if (!receiptRef.current) return;
-    const canvas = await html2canvas(receiptRef.current);
-    const imgData = canvas.toDataURL('image/png');
-    const pdf = new jsPDF('p', 'mm', 'a4');
-    const imgProps = pdf.getImageProperties(imgData);
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-    pdf.save(`receipt_${transaction.amount}.pdf`);
+    setSharingPdf(true);
+    try {
+        const canvas = await html2canvas(receiptRef.current);
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const imgProps = pdf.getImageProperties(imgData);
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+        pdf.save(`receipt_${transaction.amount}.pdf`);
+    } catch (e) {
+        console.error(e);
+    } finally {
+        setSharingPdf(false);
+    }
   };
   
   return (
@@ -92,8 +108,22 @@ export default function TransactionReceipt({ transaction, onClose }: { transacti
       </div>
 
       <div className='space-y-3 mt-8'>
-        <button onClick={handleShareAsImage} className="w-full p-4 rounded-xl bg-blue-100 text-gray-800 font-semibold italic">Share as Image</button>
-        <button onClick={handleShareAsPDF} className="w-full p-4 rounded-xl bg-blue-100 text-gray-800 font-semibold italic">Share as PDF</button>
+        <button onClick={handleShareAsImage} disabled={sharingImage || sharingPdf} className="w-full p-4 rounded-xl bg-blue-100 text-gray-800 font-semibold italic flex items-center justify-center gap-2 cursor-pointer disabled:opacity-75">
+          {sharingImage ? (
+            <>
+              <span className="w-5 h-5 border-2 border-slate-700 border-t-transparent rounded-full animate-spin"></span>
+              Generating Image...
+            </>
+          ) : 'Share as Image'}
+        </button>
+        <button onClick={handleShareAsPDF} disabled={sharingImage || sharingPdf} className="w-full p-4 rounded-xl bg-blue-100 text-gray-800 font-semibold italic flex items-center justify-center gap-2 cursor-pointer disabled:opacity-75">
+          {sharingPdf ? (
+            <>
+              <span className="w-5 h-5 border-2 border-slate-700 border-t-transparent rounded-full animate-spin"></span>
+              Generating PDF...
+            </>
+          ) : 'Share as PDF'}
+        </button>
       </div>
     </div>
   );

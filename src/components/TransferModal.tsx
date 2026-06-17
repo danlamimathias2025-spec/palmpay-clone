@@ -161,8 +161,13 @@ export default function TransferModal({ balance, setBalance, onClose, userProfil
           {formData.accountName && <p className="text-sm text-green-600 font-semibold">{formData.accountName}</p>}
           
           <input type="password" placeholder="4-digit PIN" maxLength={4} className="w-full p-3 rounded-xl border dark:bg-gray-800" onChange={e => handleInputChange('pin', e.target.value)} required />
-          <button type="submit" disabled={loading || verifying || !!accountError || !formData.accountName} className="w-full p-3 rounded-xl bg-blue-600 text-white font-semibold mt-4 disabled:bg-gray-400">
-            {loading ? 'Processing...' : 'Transfer'}
+          <button type="submit" disabled={loading || verifying || !!accountError || !formData.accountName} className="w-full p-3 rounded-xl bg-blue-600 text-white font-semibold mt-4 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-75 disabled:bg-gray-400">
+            {loading ? (
+              <>
+                <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                Processing...
+              </>
+            ) : 'Transfer'}
           </button>
         </form>
         ) : (

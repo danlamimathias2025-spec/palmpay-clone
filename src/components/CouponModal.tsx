@@ -5,8 +5,10 @@ import { doc, updateDoc, increment } from 'firebase/firestore';
 
 export default function CouponModal({ onClose, userProfile, setBalance, balance }: { onClose: () => void, userProfile: any, setBalance: (b: number) => void, balance: number }) {
   const [claimed, setClaimed] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const handleClaim = async () => {
+    setLoading(true);
     const bonus = Math.floor(Math.random() * 500) + 100; // Random bonus
     try {
         const userRef = doc(db, 'users', userProfile.phoneNumber);
@@ -18,6 +20,8 @@ export default function CouponModal({ onClose, userProfile, setBalance, balance 
     } catch (error) {
         console.error('Claim failed', error);
         alert('Failed to claim coupon.');
+    } finally {
+        setLoading(false);
     }
   };
 
@@ -35,7 +39,14 @@ export default function CouponModal({ onClose, userProfile, setBalance, balance 
             <p className="text-gray-500 mb-6">Claim your daily reward!</p>
         )}
         {!claimed && (
-            <button onClick={handleClaim} className="w-full p-3 rounded-xl bg-blue-600 text-white font-semibold">Claim Bonus</button>
+            <button onClick={handleClaim} disabled={loading} className="w-full p-3 rounded-xl bg-blue-600 text-white font-semibold flex items-center justify-center gap-2 cursor-pointer disabled:opacity-75">
+              {loading ? (
+                <>
+                  <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                  Claiming...
+                </>
+              ) : 'Claim Bonus'}
+            </button>
         )}
       </div>
     </div>

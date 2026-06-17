@@ -72,8 +72,13 @@ export default function AddFundsModal({ onClose, userProfile, balance, setBalanc
         {activeTab === 'Transfer' && (
             <div className="space-y-4">
                 <input type="number" placeholder="Amount to add (₦)" className="w-full p-3 rounded-xl border dark:bg-gray-800" value={amount} onChange={e => setAmount(e.target.value)} />
-                <button onClick={handleAddFunds} disabled={loading} className="w-full p-3 rounded-xl bg-blue-600 text-white font-semibold">
-                    {loading ? 'Processing...' : 'Add Funds'}
+                <button onClick={handleAddFunds} disabled={loading} className="w-full p-3 rounded-xl bg-blue-600 text-white font-semibold flex items-center justify-center gap-2 cursor-pointer disabled:opacity-75">
+                    {loading ? (
+                      <>
+                        <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                        Processing...
+                      </>
+                    ) : 'Add Funds'}
                 </button>
                 <div className="border-t pt-4 mt-4 text-sm text-gray-500 bg-gray-50 dark:bg-gray-800 p-3 rounded-xl">
                     <p className="font-semibold mb-2">Account Details:</p>

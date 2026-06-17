@@ -10,14 +10,20 @@ export default function RegistrationScreen({ onRegister, onSwitchToLogin }: { on
     pin: '',
     imageUrl: '',
   });
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onRegister(formData);
+    setLoading(true);
+    try {
+      await onRegister(formData);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -48,10 +54,17 @@ export default function RegistrationScreen({ onRegister, onSwitchToLogin }: { on
             className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
             onChange={handleChange} required />
           
-          <button type="submit" className="w-full p-3 rounded-xl bg-blue-600 text-white font-semibold mt-4">Register</button>
+          <button type="submit" disabled={loading} className="w-full p-3 rounded-xl bg-blue-600 text-white font-semibold mt-4 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-75">
+            {loading ? (
+              <>
+                <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                Processing...
+              </>
+            ) : 'Register'}
+          </button>
         </form>
         <p className="text-center mt-4 text-sm text-gray-500">
-            Already have an account? <button onClick={onSwitchToLogin} className="text-blue-600 font-semibold">Login</button>
+            Already have an account? <button onClick={onSwitchToLogin} className="text-blue-600 font-semibold cursor-pointer">Login</button>
         </p>
       </div>
     </div>

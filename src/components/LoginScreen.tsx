@@ -4,10 +4,16 @@ import { ChevronLeft } from 'lucide-react';
 export default function LoginScreen({ onLogin, onSwitchToRegister }: { onLogin: (phone: string, password: string) => void, onSwitchToRegister: () => void }) {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onLogin(phoneNumber, password);
+    setLoading(true);
+    try {
+      await onLogin(phoneNumber, password);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -28,10 +34,17 @@ export default function LoginScreen({ onLogin, onSwitchToRegister }: { onLogin: 
             value={password}
             onChange={(e) => setPassword(e.target.value)} required />
           
-          <button type="submit" className="w-full p-3 rounded-xl bg-blue-600 text-white font-semibold mt-4">Login</button>
+          <button type="submit" disabled={loading} className="w-full p-3 rounded-xl bg-blue-600 text-white font-semibold mt-4 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-75">
+            {loading ? (
+              <>
+                <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                Processing...
+              </>
+            ) : 'Login'}
+          </button>
         </form>
         <p className="text-center mt-4 text-sm text-gray-500">
-          Don't have an account? <button onClick={onSwitchToRegister} className="text-blue-600 font-semibold">Register</button>
+          Don't have an account? <button onClick={onSwitchToRegister} className="text-blue-600 font-semibold cursor-pointer">Register</button>
         </p>
       </div>
     </div>

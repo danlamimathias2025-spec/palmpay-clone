@@ -81,7 +81,10 @@ export default function HomePage({
 }: HomePageProps) {
   const { isLandscape } = useOrientation();
 
-  const recentTransactions = (transactions || []).slice(0, 2);
+  const realTransactions = (transactions || []).filter(
+    (tx) => tx.id && !tx.id.startsWith('tx-jul-') && !tx.id.startsWith('tx-mock-')
+  );
+  const recentTransactions = realTransactions.slice(0, 2);
 
   const renderRecentTransactions = () => {
     if (recentTransactions.length === 0) return null;

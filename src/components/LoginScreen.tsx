@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { ShieldCheck, ArrowRight, Eye, EyeOff } from 'lucide-react';
+import { ShieldCheck, ArrowRight, Eye, EyeOff, Fingerprint, ScanFace } from 'lucide-react';
 import { generatePalmPayAccountNumber } from '../utils/account';
+import BiometricAuthOverlay from './BiometricAuthOverlay';
 
 export default function LoginScreen({
   onLogin,
@@ -13,6 +14,7 @@ export default function LoginScreen({
   const [password, setPassword] = useState('123456');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showBiometrics, setShowBiometrics] = useState(false);
 
   const accountNum = generatePalmPayAccountNumber(phoneNumber);
 
@@ -24,6 +26,11 @@ export default function LoginScreen({
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleBiometricSuccess = () => {
+    setShowBiometrics(false);
+    onLogin(phoneNumber, password || '123456');
   };
 
   return (
@@ -115,7 +122,27 @@ export default function LoginScreen({
               </>
             )}
           </button>
+
+          {/* WebAuthn Biometric Fast Login */}
+          <button
+            type="button"
+            onClick={() => setShowBiometrics(true)}
+            className="w-full py-3 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 text-purple-200 font-semibold text-xs flex items-center justify-center gap-2 active:scale-95 transition-all shadow-sm"
+          >
+            <Fingerprint size={16} className="text-purple-300" />
+            <span>Sign In with Biometrics (Touch ID / Face ID)</span>
+            <ScanFace size={16} className="text-purple-300 ml-1" />
+          </button>
         </form>
+
+        {showBiometrics && (
+          <BiometricAuthOverlay
+            userId={phoneNumber}
+            userName={phoneNumber === '08082076038' ? 'Mathias Shekwoaga Danlami' : 'PalmPay User'}
+            onSuccess={handleBiometricSuccess}
+            onCancel={() => setShowBiometrics(false)}
+          />
+        )}
 
         <div className="mt-6 pt-4 border-t border-white/10 text-center">
           <p className="text-xs text-white/60">

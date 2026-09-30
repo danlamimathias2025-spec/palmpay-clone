@@ -334,8 +334,12 @@ export default function App() {
                       },
                     };
 
-                    // Trigger In-App Flash Alert Banner
-                    setActiveFlashAlert(alertData);
+                    // Trigger In-App Flash Alert Banner or save for when the user enters the app
+                    if (document.visibilityState === 'hidden') {
+                      localStorage.setItem('palmpay_pending_inapp_alert', JSON.stringify(alertData));
+                    } else {
+                      setActiveFlashAlert(alertData);
+                    }
 
                     // Trigger Audio & Haptics
                     playFlashChime(isCredit ? 'credit' : 'debit');
@@ -378,6 +382,37 @@ export default function App() {
       }
     }
   }, [userProfile.phoneNumber]);
+
+  // Listen for the user entering the app (visibilityState changes to visible)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        const pending = localStorage.getItem('palmpay_pending_inapp_alert');
+        if (pending) {
+          try {
+            const alertData = JSON.parse(pending);
+            // Delay slightly to allow full UI mounting/transition
+            setTimeout(() => {
+              setActiveFlashAlert(alertData);
+              playFlashChime(alertData.type === 'credit' ? 'credit' : 'debit');
+              triggerHaptic();
+            }, 500);
+          } catch (e) {
+            console.warn('Error parsing pending alert:', e);
+          }
+          localStorage.removeItem('palmpay_pending_inapp_alert');
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    // Also run on mount to handle clean start cases
+    handleVisibilityChange();
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
 
   // Synchronize dynamic system dark/light theme setting overrides
   useEffect(() => {

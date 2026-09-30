@@ -35,11 +35,11 @@ export default function QuickActions({ onToBank, onToPalmPay, onSavings, onLoan 
           onClick={onToPalmPay}
           className="mirror-glass-card rounded-2xl py-3 px-1 flex flex-col items-center justify-center group active:scale-95 transition-all text-center"
         >
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-1 overflow-hidden p-1">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-1 overflow-hidden p-0">
             <img
-              src="/palmpay_official_icon.png"
+              src="/palmpay_official_icon.svg"
               alt="PalmPay"
-              className="w-full h-full object-cover rounded-lg group-hover:scale-105 transition-transform"
+              className="w-full h-full object-contain rounded-lg group-hover:scale-105 transition-transform"
             />
           </div>
           <span className="text-xs text-white/90 font-medium whitespace-nowrap">

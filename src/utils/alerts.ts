@@ -121,8 +121,8 @@ export function sendOutsideAppNotification(alert: FlashAlertData, onClick?: () =
 
       const notification = new Notification(title, {
         body: body,
-        icon: '/palmpay_official_icon.png',
-        badge: '/palmpay_official_icon.png',
+        icon: '/palmpay_official_icon.svg',
+        badge: '/palmpay_official_icon.svg',
         tag: alert.id,
         silent: false,
         requireInteraction: false,

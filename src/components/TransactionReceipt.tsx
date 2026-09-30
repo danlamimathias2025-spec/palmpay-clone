@@ -124,11 +124,11 @@ export default function TransactionReceipt({
     // 1. PalmPay Logo
     if (b.includes('palm') || b.includes('palmpay')) {
       return (
-        <div className="w-13 h-13 rounded-full overflow-hidden shadow-md border-2 border-white bg-[#6700ea]">
+        <div className="w-13 h-13 rounded-full overflow-hidden shadow-md border-2 border-white bg-transparent">
           <img
-            src="/palmpay_official_icon.png"
+            src="/palmpay_official_icon.svg"
             alt="PalmPay"
-            className="w-full h-full object-cover"
+            className="w-full h-full object-contain"
           />
         </div>
       );

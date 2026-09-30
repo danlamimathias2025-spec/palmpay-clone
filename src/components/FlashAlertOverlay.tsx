@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowDownLeft, ArrowUpRight, X, ChevronRight, BellRing, Sparkles } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { FlashAlertData } from '../utils/alerts';
 
 interface FlashAlertOverlayProps {
@@ -23,23 +23,30 @@ export default function FlashAlertOverlay({
     const intervalTime = 50;
     const step = (intervalTime / duration) * 100;
 
-    const timer = setInterval(() => {
+    const progressTimer = setInterval(() => {
       setProgress((prev) => {
         if (prev <= 0) {
-          clearInterval(timer);
-          onDismiss();
           return 0;
         }
         return prev - step;
       });
     }, intervalTime);
 
-    return () => clearInterval(timer);
+    const dismissTimer = setTimeout(() => {
+      onDismiss();
+    }, duration);
+
+    return () => {
+      clearInterval(progressTimer);
+      clearTimeout(dismissTimer);
+    };
   }, [alert, onDismiss]);
 
   if (!alert) return null;
 
   const isCredit = alert.type === 'credit';
+  const senderName = alert.senderOrRecipient?.toUpperCase() || 'PALMPAY USER';
+  const timeStr = alert.date?.includes(':') ? alert.date.split(' ').pop() || '11:16 PM' : '11:16 PM';
 
   return (
     <div className="fixed top-2 inset-x-0 z-50 px-3 flex justify-center pointer-events-none animate-in fade-in slide-in-from-top-4 duration-300">
@@ -50,96 +57,39 @@ export default function FlashAlertOverlay({
           }
           onDismiss();
         }}
-        className="pointer-events-auto w-full max-w-md bg-[#121524]/95 backdrop-blur-xl border border-white/20 rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.6)] text-white p-3.5 cursor-pointer relative overflow-hidden transition-all hover:scale-[1.01] active:scale-[0.99]"
+        className="pointer-events-auto w-full max-w-md bg-[#1d1f27] border border-white/10 rounded-2xl shadow-[0_12px_36px_rgba(0,0,0,0.5)] text-white p-3.5 cursor-pointer relative overflow-hidden transition-all hover:brightness-110 active:scale-[0.99] flex items-start gap-3"
       >
-        {/* Animated Background Accent Glow */}
-        <div
-          className={`absolute -top-10 -right-10 w-36 h-36 rounded-full blur-3xl opacity-30 pointer-events-none ${
-            isCredit ? 'bg-emerald-500' : 'bg-purple-600'
-          }`}
-        />
-
-        {/* Top Header Strip */}
-        <div className="flex items-center justify-between gap-2 mb-2">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-full bg-[#6700ea] p-1 flex items-center justify-center shadow-md">
-              <img src="/palmpay_official_icon.png" alt="PalmPay" className="w-full h-full object-contain" />
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-[11px] font-extrabold uppercase tracking-wider text-purple-200">
-                PalmPay Flash Alert
-              </span>
-              <span
-                className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-tight flex items-center gap-0.5 ${
-                  isCredit
-                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                    : 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
-                }`}
-              >
-                <Sparkles size={9} />
-                {isCredit ? 'Deposit' : 'Withdrawal'}
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-1">
-            <span className="text-[10px] text-white/50">{alert.date || 'Just now'}</span>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDismiss();
-              }}
-              className="p-1 rounded-full text-white/60 hover:text-white hover:bg-white/10 transition-all"
-              aria-label="Close"
-            >
-              <X size={14} />
-            </button>
-          </div>
+        {/* PalmPay Brand Icon */}
+        <div className="w-8 h-8 rounded-full bg-transparent flex items-center justify-center shrink-0 mt-0.5">
+          <img src="/palmpay_official_icon.svg" alt="PalmPay" className="w-full h-full object-contain" />
         </div>
 
-        {/* Main Alert Body */}
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <div
-              className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-inner ${
-                isCredit
-                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                  : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
-              }`}
-            >
-              {isCredit ? (
-                <ArrowDownLeft size={20} strokeWidth={2.6} className="animate-bounce" />
-              ) : (
-                <ArrowUpRight size={20} strokeWidth={2.6} />
-              )}
-            </div>
-
-            <div>
-              <p className="text-xs text-white/70 font-medium truncate max-w-[200px]">
-                {isCredit ? `From: ${alert.senderOrRecipient}` : `To: ${alert.senderOrRecipient}`}
-              </p>
-              <h3
-                className={`text-lg font-black tracking-tight font-sans ${
-                  isCredit ? 'text-emerald-400' : 'text-white'
-                }`}
-              >
-                {alert.formattedAmount}
-              </h3>
+        {/* Text Content Block */}
+        <div className="flex-1 min-w-0">
+          {/* Header row with Title and Chevron */}
+          <div className="flex items-center justify-between gap-1.5 mb-1">
+            <h4 className="text-[12px] font-bold text-white tracking-wide truncate">
+              {isCredit ? `Received from ${senderName}` : `Paid to ${senderName}`}
+            </h4>
+            <div className="flex items-center gap-1.5 shrink-0 text-[10px] text-white/50">
+              <span>{timeStr}</span>
+              <ChevronDown size={14} className="text-white/40" />
             </div>
           </div>
 
-          <div className="flex items-center gap-1 text-[11px] font-bold text-purple-300 hover:text-white bg-white/5 hover:bg-white/10 px-2.5 py-1.5 rounded-xl border border-white/10 transition-all shrink-0">
-            <span>View Receipt</span>
-            <ChevronRight size={13} />
-          </div>
+          {/* Subtitle Message Body */}
+          <p className="text-[11px] text-white/70 leading-relaxed truncate">
+            {isCredit
+              ? `You received ${alert.formattedAmount} from ${senderName}. It has been credite..`
+              : `Your transfer of ${alert.formattedAmount} to ${senderName} was successful.`}
+          </p>
         </div>
 
-        {/* Auto Dismiss Progress Bar */}
-        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-white/10 overflow-hidden">
+        {/* Custom Auto Dismiss Progress Line indicator */}
+        <div className="absolute bottom-0 left-0 right-0 h-[1.5px] bg-white/5 overflow-hidden">
           <div
             className={`h-full transition-all duration-75 ${
-              isCredit ? 'bg-emerald-400' : 'bg-purple-400'
+              isCredit ? 'bg-purple-500' : 'bg-purple-400'
             }`}
             style={{ width: `${progress}%` }}
           />

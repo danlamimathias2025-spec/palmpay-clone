@@ -316,8 +316,8 @@ export default function ToPalmPayModal({
         </button>
 
         <div className="flex items-center gap-3 mb-4">
-          <div className="w-11 h-11 rounded-2xl overflow-hidden flex items-center justify-center p-1 bg-[#6700ea] shadow-md shrink-0 border border-white/10">
-            <img src="/palmpay_official_icon.png" alt="PalmPay" className="w-full h-full object-contain" />
+          <div className="w-11 h-11 rounded-2xl overflow-hidden flex items-center justify-center bg-transparent shrink-0 border border-white/5">
+            <img src="/palmpay_official_icon.svg" alt="PalmPay" className="w-full h-full object-contain" />
           </div>
           <div>
             <h2 className="text-base font-bold text-white font-script">Send to PalmPay User</h2>

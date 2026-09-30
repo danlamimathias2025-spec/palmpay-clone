@@ -8,7 +8,7 @@ import CashbackMiniBanner from '../CashbackMiniBanner';
 import WealthCards from '../WealthCards';
 import DataRechargeBanner from '../DataRechargeBanner';
 import { useOrientation } from '../../hooks/useOrientation';
-import { ArrowDownToLine, ArrowUpFromLine, ChevronRight } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 
 interface HomePageProps {
   balance: number;
@@ -83,61 +83,36 @@ export default function HomePage({
 
   const recentTransactions = (transactions || []).slice(0, 2);
 
-  const renderMiniIcon = (tx: any) => {
-    if (tx.type === 'credit' || tx.type === 'interest') {
-      return (
-        <div className="w-8 h-8 rounded-full bg-[#2563eb]/20 text-[#60a5fa] flex items-center justify-center shrink-0">
-          <ArrowDownToLine size={15} strokeWidth={2.5} />
-        </div>
-      );
-    }
-    return (
-      <div className="w-8 h-8 rounded-full bg-[#6d28d9]/20 text-[#a78bfa] flex items-center justify-center shrink-0">
-        <ArrowUpFromLine size={15} strokeWidth={2.5} />
-      </div>
-    );
-  };
-
   const renderRecentTransactions = () => {
     if (recentTransactions.length === 0) return null;
     return (
-      <div className="mirror-glass-card rounded-2xl p-4 border border-white/5 space-y-3">
-        <div className="flex justify-between items-center">
-          <h3 className="text-xs font-bold text-white/90 font-sans tracking-wide uppercase">Recent Transactions</h3>
-          <button
-            onClick={onViewHistory}
-            className="text-[11px] text-purple-400 font-bold hover:underline flex items-center gap-0.5"
-          >
-            <span>See All</span>
-            <ChevronRight size={12} />
-          </button>
-        </div>
-        <div className="space-y-2">
-          {recentTransactions.map((tx) => {
-            const isCredit = tx.type === 'credit' || tx.type === 'interest';
-            return (
-              <div
-                key={tx.id}
-                onClick={() => onSelectTransaction?.(tx)}
-                className="flex items-center justify-between p-2.5 rounded-xl hover:bg-white/5 active:scale-[0.99] cursor-pointer transition-all border border-white/[0.03]"
-              >
-                <div className="flex items-center gap-3">
-                  {renderMiniIcon(tx)}
-                  <div className="text-left">
-                    <p className="text-xs font-bold text-white max-w-[150px] truncate">{tx.title}</p>
-                    <p className="text-[10px] text-white/40">{tx.date || 'Just now'}</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <span className={`text-xs font-black font-sans ${isCredit ? 'text-emerald-400' : 'text-slate-100'}`}>
-                    {isCredit ? '+' : '-'}{typeof tx.amount === 'number' ? `₦${tx.amount.toLocaleString()}` : tx.formattedAmount}
-                  </span>
-                  <p className="text-[9px] text-[#22c55e] font-semibold">Successful</p>
-                </div>
+      <div className="mirror-glass-card rounded-2xl p-4 border border-white/5 divide-y divide-white/5">
+        {recentTransactions.map((tx) => {
+          const isCredit = tx.type === 'credit' || tx.type === 'interest';
+          const titleText = isCredit 
+            ? `Received from ${(tx.senderName || 'MATHIAS SHEKWOAGA DANLAMI').toUpperCase()}`
+            : `Paid to ${(tx.recipient || 'USER').toUpperCase()}`;
+          const amountText = typeof tx.amount === 'number' 
+            ? `₦${tx.amount.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`
+            : tx.formattedAmount;
+          return (
+            <div
+              key={tx.id}
+              onClick={() => onSelectTransaction?.(tx)}
+              className="flex items-center justify-between py-2 cursor-pointer active:scale-[0.99] transition-all first:pt-0 last:pb-0"
+            >
+              <div className="text-left min-w-0 pr-2">
+                <p className="text-xs font-semibold text-white font-sans truncate">{titleText}</p>
+                <p className="text-[10px] text-white/50 font-sans mt-0.5">
+                  {amountText} <span className="text-white/40 font-medium">Success</span>
+                </p>
               </div>
-            );
-          })}
-        </div>
+              <div className="text-right shrink-0">
+                <p className="text-[10px] text-white/40 font-sans">{tx.date || 'Today 11:16 PM'}</p>
+              </div>
+            </div>
+          );
+        })}
       </div>
     );
   };

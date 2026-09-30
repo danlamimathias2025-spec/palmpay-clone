@@ -1,40 +1,117 @@
-import { ArrowLeftRight, Clapperboard, Lightbulb, Smartphone, Target, Tv, Zap, Gift } from 'lucide-react';
+import React from 'react';
+import { Smartphone, ArrowUpDown, Trophy, Zap, Gift, Shield, CreditCard, LayoutGrid } from 'lucide-react';
 
-const services = [
-  { name: 'Add Funds', icon: <ArrowLeftRight size={24} className="text-green-500" />, badge: 'Max 3.0%' },
-  { name: 'Transfer', icon: <ArrowLeftRight size={24} className="text-blue-500" />, badge: 'Max 3.0%' },
-  { name: 'Airtime', icon: <Smartphone size={24} className="text-blue-500" />, badge: 'Max 3.0%' },
-  { name: 'Data', icon: <Smartphone size={24} className="text-blue-500" />, badge: 'Max 3.0%' },
-  { name: 'TV', icon: <Tv size={24} className="text-red-500" />, badge: 'Max 1.5%' },
-  { name: 'Gaming', icon: <Target size={24} className="text-purple-500" />, badge: 'Max 0.5%' },
-  { name: 'Electricity', icon: <Lightbulb size={24} className="text-yellow-500" />, badge: 'Max 1.0%' },
-  { name: 'Coupon', icon: <Gift size={24} className="text-orange-500" />, badge: 'Claim' },
-];
+interface ServicesGridProps {
+  onAirtime: () => void;
+  onData: () => void;
+  onBetting: () => void;
+  onElectricity: () => void;
+  onRefer: () => void;
+  onInsurance: () => void;
+  onCards: () => void;
+  onMore: () => void;
+}
 
-export default function ServicesGrid({ onTransfer, onAddFunds, onAirtime, onData, onCoupon }: { onTransfer: () => void, onAddFunds: () => void, onAirtime: () => void, onData: () => void, onCoupon: () => void }) {
-  const handleClick = (name: string) => {
-    switch(name) {
-        case 'Transfer': onTransfer(); break;
-        case 'Add Funds': onAddFunds(); break;
-        case 'Airtime': onAirtime(); break;
-        case 'Data': onData(); break;
-        case 'Coupon': onCoupon(); break;
-    }
-  }
+export default function ServicesGrid({
+  onAirtime,
+  onData,
+  onBetting,
+  onElectricity,
+  onRefer,
+  onInsurance,
+  onCards,
+  onMore,
+}: ServicesGridProps) {
+  const services = [
+    {
+      id: 'airtime',
+      name: 'Airtime',
+      icon: <Smartphone size={22} className="text-[#38bdf8]" strokeWidth={2.2} />,
+      bg: 'bg-[#0284c7]/15',
+      action: onAirtime,
+    },
+    {
+      id: 'data',
+      name: 'Data',
+      icon: <ArrowUpDown size={22} className="text-[#34d399]" strokeWidth={2.2} />,
+      bg: 'bg-[#059669]/15',
+      action: onData,
+    },
+    {
+      id: 'betting',
+      name: 'Betting',
+      icon: <Trophy size={22} className="text-[#4ade80]" strokeWidth={2.2} />,
+      bg: 'bg-[#16a34a]/15',
+      action: onBetting,
+    },
+    {
+      id: 'electricity',
+      name: 'Electricity',
+      icon: <Zap size={22} className="text-[#2dd4bf]" strokeWidth={2.2} />,
+      bg: 'bg-[#0d9488]/15',
+      action: onElectricity,
+    },
+    {
+      id: 'refer',
+      name: 'Refer & Earn',
+      icon: <Gift size={22} className="text-[#c084fc]" strokeWidth={2.2} />,
+      bg: 'bg-[#9333ea]/15',
+      badge: '₦10000',
+      action: onRefer,
+    },
+    {
+      id: 'insurance',
+      name: 'Insurance',
+      icon: <Shield size={22} className="text-[#60a5fa]" strokeWidth={2.2} />,
+      bg: 'bg-[#2563eb]/15',
+      action: onInsurance,
+    },
+    {
+      id: 'cards',
+      name: 'Cards',
+      icon: <CreditCard size={22} className="text-[#a78bfa]" strokeWidth={2.2} />,
+      bg: 'bg-[#7c3aed]/15',
+      action: onCards,
+    },
+    {
+      id: 'more',
+      name: 'More',
+      icon: <LayoutGrid size={22} className="text-[#c084fc]" strokeWidth={2.2} />,
+      bg: 'bg-[#8b5cf6]/15',
+      action: onMore,
+    },
+  ];
 
   return (
-    <div className="p-4 grid grid-cols-4 gap-4">
-      {services.map((service, index) => (
-        <div key={index} className="flex flex-col items-center" onClick={() => handleClick(service.name)}>
-            <div className='relative'>
-                <span className='absolute -top-3 left-1 text-[8px] font-bold text-white bg-blue-600 px-1 rounded-full whitespace-nowrap'>{service.badge}</span>
-                <div className="w-14 h-14 rounded-full bg-gray-50 dark:bg-gray-900 flex items-center justify-center mb-2 border border-gray-100 dark:border-gray-800">
-                    {service.icon}
+    <div className="px-4 py-2">
+      <div className="mirror-glass-card rounded-2xl p-3.5 border border-white/10 shadow-lg">
+        <div className="grid grid-cols-4 gap-y-3.5 gap-x-2">
+          {services.map((item) => (
+            <button
+              key={item.id}
+              onClick={item.action}
+              className="flex flex-col items-center justify-start group cursor-pointer active:scale-95 transition-all text-center relative"
+            >
+              <div className="relative mb-1">
+                {item.badge && (
+                  <span className="absolute -top-2 -right-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[8px] font-bold px-1.5 py-0.2 rounded-full shadow-sm leading-tight border border-white/20 whitespace-nowrap z-10 animate-bounce">
+                    {item.badge}
+                  </span>
+                )}
+                <div
+                  className={`w-11 h-11 rounded-xl ${item.bg} flex items-center justify-center border border-white/10 group-hover:scale-105 transition-transform shadow-xs`}
+                >
+                  {item.icon}
                 </div>
-            </div>
-          <p className="text-xs text-gray-700 dark:text-gray-200 text-center font-medium">{service.name}</p>
+              </div>
+
+              <span className="text-xs text-white/90 font-medium whitespace-nowrap tracking-normal">
+                {item.name}
+              </span>
+            </button>
+          ))}
         </div>
-      ))}
+      </div>
     </div>
   );
 }

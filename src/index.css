@@ -1,1 +1,70 @@
 @import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background-color: #0c0e15;
+    color: #f1f5f9;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+}
+
+/* Allow clean normal text style that inherits system settings */
+.font-script {
+  font-family: inherit;
+}
+
+.font-comfortaa {
+  font-family: inherit;
+}
+
+/* Mirror Glass Style Components */
+.mirror-glass {
+  background: rgba(22, 24, 36, 0.65);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.45);
+}
+
+.mirror-glass-card {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.01) 100%), rgba(20, 23, 34, 0.78);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.18), 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.mirror-glass-nav {
+  background: rgba(18, 20, 31, 0.85);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.2), 0 20px 45px -10px rgba(0, 0, 0, 0.7);
+}
+
+.mirror-glass-modal {
+  background: linear-gradient(180deg, rgba(28, 30, 46, 0.94) 0%, rgba(18, 20, 32, 0.96) 100%);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.25), 0 25px 60px -15px rgba(0, 0, 0, 0.8);
+}
+
+.mirror-glass-glow {
+  box-shadow: 0 0 30px -5px rgba(123, 70, 245, 0.4);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+

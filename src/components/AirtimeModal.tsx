@@ -1,87 +1,176 @@
 import React, { useState } from 'react';
-import { X, Smartphone, Check } from 'lucide-react';
-import { db } from '../lib/firebase';
-import { doc, addDoc, collection, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
+import { X, Smartphone, Check, Sparkles } from 'lucide-react';
 
-const operators = ['MTN', 'AIRTEL', 'GLO', '9MOBILE'];
+interface AirtimeModalProps {
+  balance: number;
+  setBalance: (b: number) => void;
+  userProfile: any;
+  onClose: () => void;
+  onSuccessTransaction?: (tx: any) => void;
+}
 
-export default function AirtimeModal({ balance, setBalance, onClose, userProfile }: { balance: number, setBalance: (b: number) => void, onClose: () => void, userProfile: any }) {
+export default function AirtimeModal({
+  balance,
+  setBalance,
+  userProfile,
+  onClose,
+  onSuccessTransaction,
+}: AirtimeModalProps) {
+  const [network, setNetwork] = useState('MTN');
+  const [phoneNumber, setPhoneNumber] = useState(userProfile.phoneNumber || '08082076038');
+  const [amount, setAmount] = useState('500');
+  const [isProcessing, setIsProcessing] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
-  const [formData, setFormData] = useState({ amount: '', phoneNumber: '', operator: '' });
-  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const networks = [
+    { name: 'MTN', color: 'bg-amber-400 text-black' },
+    { name: 'Airtel', color: 'bg-red-500 text-white' },
+    { name: 'Glo', color: 'bg-emerald-500 text-white' },
+    { name: '9mobile', color: 'bg-lime-500 text-black' },
+  ];
+
+  const presets = ['100', '200', '500', '1000', '2000', '5000'];
+
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    const amount = Number(formData.amount);
-    if (amount > balance) {
-        alert('Insufficient funds');
-        setLoading(false);
-        return;
-    }
+    const amt = Number(amount);
+    if (amt <= 0) return alert('Enter a valid amount');
+    if (amt > balance) return alert('Insufficient balance in your account');
 
-    try {
-        const userId = userProfile.phoneNumber;
-        const userRef = doc(db, 'users', userId);
-        const transactionsRef = collection(userRef, 'transactions');
-        
-        await addDoc(transactionsRef, {
-            amount,
-            type: 'airtime',
-            recipient: formData.phoneNumber,
-            timestamp: serverTimestamp()
+    setIsProcessing(true);
+    setTimeout(() => {
+      setIsProcessing(false);
+      const cashback = Math.round(amt * 0.03); // 3% cashback bonus
+      const netDeduction = amt - cashback;
+      setBalance(balance - netDeduction);
+      if (onSuccessTransaction) {
+        onSuccessTransaction({
+          amount: amt,
+          type: 'airtime',
+          recipient: `${network} Airtime (${phoneNumber})`,
+          timestamp: { seconds: Math.floor(Date.now() / 1000) },
         });
-        
-        await updateDoc(userRef, {
-            balance: increment(-amount)
-        });
-
-        setBalance(balance - amount);
-        setShowSuccess(true);
-    } catch (error) {
-        console.error('Airtime purchase failed', error);
-        alert('Airtime purchase failed. Please try again.');
-    } finally {
-        setLoading(false);
-    }
+      }
+      setShowSuccess(true);
+    }, 1000);
   };
 
   if (showSuccess) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-        <div className="bg-white dark:bg-gray-900 rounded-3xl p-8 w-full max-w-xs shadow-xl text-center">
-          <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Check size={32} />
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+        <div className="mirror-glass-modal rounded-3xl p-6 w-full max-w-sm text-center">
+          <div className="w-16 h-16 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center mx-auto mb-4 border border-emerald-500/30">
+            <Check size={34} strokeWidth={2.5} />
           </div>
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Purchase Successful</h2>
-          <p className="text-gray-500 mb-6 font-mono text-sm">₦{Number(formData.amount).toLocaleString()} airtime for {formData.phoneNumber}</p>
-          <button onClick={onClose} className="w-full p-3 rounded-xl bg-blue-600 text-white font-semibold">Done</button>
+          <h2 className="text-xl font-bold text-white font-script mb-1">Recharge Successful!</h2>
+          <p className="text-xs text-white/60 mb-4">₦{amount} airtime sent to {phoneNumber}</p>
+          <div className="p-3 bg-purple-500/10 rounded-xl text-xs text-purple-300 font-bold mb-4 border border-purple-500/20">
+            🎉 +3% Instant Cashback Earned!
+          </div>
+          <button
+            onClick={onClose}
+            className="w-full py-3 rounded-xl bg-[#7846f7] hover:bg-[#6836ea] text-white font-bold text-sm shadow-md"
+          >
+            Done
+          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-      <div className="bg-white dark:bg-gray-900 rounded-3xl p-6 w-full max-w-sm shadow-xl relative">
-        <button onClick={onClose} className="absolute top-4 right-4 text-gray-400"><X /></button>
-        <h2 className="text-xl font-bold mb-6 text-gray-900 dark:text-white flex items-center gap-2">
-            <Smartphone size={24} /> Buy Airtime
-        </h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+      <div className="mirror-glass-modal rounded-3xl p-6 w-full max-w-sm relative">
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 w-8 h-8 rounded-full mirror-glass flex items-center justify-center text-white/70 hover:text-white"
+        >
+          <X size={18} />
+        </button>
+
+        <div className="flex items-center gap-2 mb-4">
+          <div className="w-10 h-10 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center">
+            <Smartphone size={22} />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-white font-script">Airtime Top-Up</h2>
+            <p className="text-[11px] text-amber-300 font-semibold flex items-center gap-1">
+              <Sparkles size={12} /> Up to 3% Instant Cashback
+            </p>
+          </div>
+        </div>
+
         <form onSubmit={handleSubmit} className="space-y-4">
-          <input type="tel" placeholder="Phone Number" className="w-full p-3 rounded-xl border dark:bg-gray-800" onChange={e => setFormData({...formData, phoneNumber: e.target.value})} required />
-          <select className="w-full p-3 rounded-xl border dark:bg-gray-800" onChange={e => setFormData({...formData, operator: e.target.value})} required>
-            <option value="">Select Operator</option>
-            {operators.map(op => <option key={op} value={op}>{op}</option>)}
-          </select>
-          <input type="number" placeholder="Amount (₦)" className="w-full p-3 rounded-xl border dark:bg-gray-800" onChange={e => setFormData({...formData, amount: e.target.value})} required />
-          <button type="submit" disabled={loading} className="w-full p-3 rounded-xl bg-blue-600 text-white font-semibold mt-4 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-75">
-            {loading ? (
-              <>
-                <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                Processing...
-              </>
-            ) : 'Buy Airtime'}
+          {/* Network Selector */}
+          <div>
+            <span className="text-xs text-white/70 block mb-1.5">Choose Network</span>
+            <div className="grid grid-cols-4 gap-2">
+              {networks.map((net) => (
+                <button
+                  type="button"
+                  key={net.name}
+                  onClick={() => setNetwork(net.name)}
+                  className={`py-2 rounded-xl text-xs font-bold border transition-all ${
+                    network === net.name
+                      ? 'border-purple-400 bg-purple-600/30 text-white shadow-sm'
+                      : 'mirror-glass border-white/10 text-white/70 hover:bg-white/10'
+                  }`}
+                >
+                  {net.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Phone Number */}
+          <div>
+            <label className="text-xs text-white/70 block mb-1">Recipient Mobile</label>
+            <input
+              type="text"
+              value={phoneNumber}
+              onChange={(e) => setPhoneNumber(e.target.value)}
+              required
+              className="w-full p-3 rounded-xl mirror-glass border border-white/10 text-white text-sm focus:outline-none focus:border-purple-400"
+            />
+          </div>
+
+          {/* Preset amounts */}
+          <div>
+            <div className="flex justify-between items-center mb-1 text-xs">
+              <span className="text-white/70">Amount (₦)</span>
+              <span className="text-white/50">Bal: ₦{balance.toFixed(2)}</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2 mb-2">
+              {presets.map((preset) => (
+                <button
+                  type="button"
+                  key={preset}
+                  onClick={() => setAmount(preset)}
+                  className={`py-2 rounded-xl text-xs font-bold border transition-all ${
+                    amount === preset
+                      ? 'bg-[#7846f7] text-white border-purple-400'
+                      : 'mirror-glass border-white/10 text-white/80 hover:bg-white/10'
+                  }`}
+                >
+                  ₦{preset}
+                </button>
+              ))}
+            </div>
+            <input
+              type="number"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              className="w-full p-3 rounded-xl mirror-glass border border-white/10 text-white text-sm focus:outline-none focus:border-purple-400"
+              placeholder="Or enter custom amount"
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={isProcessing}
+            className="w-full py-3 rounded-xl bg-[#7846f7] hover:bg-[#6836ea] text-white font-bold text-sm shadow-md active:scale-95 transition-all"
+          >
+            {isProcessing ? 'Recharging...' : `Pay ₦${amount} with 3% Cashback`}
           </button>
         </form>
       </div>

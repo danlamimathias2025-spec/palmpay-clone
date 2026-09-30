@@ -157,6 +157,17 @@ export default function TransferModal({
       if (onSuccessTransaction) {
         onSuccessTransaction(newTx);
       }
+
+      // Dispatch real SMS alert via backend
+      fetch('/api/send-sms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phoneNumber: userProfile.phoneNumber,
+          amount: amount,
+        }),
+      }).catch(console.warn);
+
       setShowSuccess(true);
     } catch (error) {
       console.error('Transfer failed:', error);

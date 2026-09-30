@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { X, ArrowDownUp, Check, Sparkles } from 'lucide-react';
+import { db } from '../lib/firebase';
+import { doc, collection, addDoc, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
 
 interface DataModalProps {
   balance: number;
@@ -31,24 +33,60 @@ export default function DataModal({
     { plan: '25GB (Monthly)', price: 5000 },
   ];
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedPlan.price > balance) return alert('Insufficient balance in your account');
 
     setIsProcessing(true);
-    setTimeout(() => {
-      setIsProcessing(false);
+    try {
+      const userId = userProfile.phoneNumber || '08082076038';
+      const newTx = {
+        amount: selectedPlan.price,
+        formattedAmount: `-₦${selectedPlan.price.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`,
+        type: 'data',
+        category: 'other',
+        title: `Buy Data Bundle`,
+        recipient: `${network} ${selectedPlan.plan} (${phoneNumber})`,
+        status: 'successful',
+        timestamp: { seconds: Math.floor(Date.now() / 1000) },
+      };
+
+      try {
+        const userRef = doc(db, 'users', userId);
+        const txRef = collection(userRef, 'transactions');
+        await addDoc(txRef, {
+          ...newTx,
+          timestamp: serverTimestamp(),
+        });
+        await updateDoc(userRef, {
+          balance: increment(-selectedPlan.price),
+        });
+      } catch (err) {
+        console.warn('Firestore fallback sync:', err);
+      }
+
       setBalance(balance - selectedPlan.price);
       if (onSuccessTransaction) {
-        onSuccessTransaction({
-          amount: selectedPlan.price,
-          type: 'data',
-          recipient: `${network} ${selectedPlan.plan} (${phoneNumber})`,
-          timestamp: { seconds: Math.floor(Date.now() / 1000) },
-        });
+        onSuccessTransaction(newTx);
       }
+
+      // Trigger SMS notification
+      fetch('/api/send-sms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phoneNumber: userId,
+          amount: selectedPlan.price,
+        }),
+      }).catch(console.warn);
+
       setShowSuccess(true);
-    }, 1000);
+    } catch (err) {
+      console.error('Data purchase failed:', err);
+      alert('Data purchase failed. Please retry.');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   if (showSuccess) {

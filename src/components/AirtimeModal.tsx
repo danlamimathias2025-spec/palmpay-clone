@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { X, Smartphone, Check, Sparkles } from 'lucide-react';
+import { db } from '../lib/firebase';
+import { doc, collection, addDoc, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
 
 interface AirtimeModalProps {
   balance: number;
@@ -31,28 +33,65 @@ export default function AirtimeModal({
 
   const presets = ['100', '200', '500', '1000', '2000', '5000'];
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const amt = Number(amount);
     if (amt <= 0) return alert('Enter a valid amount');
     if (amt > balance) return alert('Insufficient balance in your account');
 
     setIsProcessing(true);
-    setTimeout(() => {
-      setIsProcessing(false);
+    try {
       const cashback = Math.round(amt * 0.03); // 3% cashback bonus
       const netDeduction = amt - cashback;
+      const userId = userProfile.phoneNumber || '08082076038';
+
+      const newTx = {
+        amount: amt,
+        formattedAmount: `-₦${amt.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`,
+        type: 'airtime',
+        category: 'airtime',
+        title: `Top up Airtime`,
+        recipient: `${network} Airtime (${phoneNumber})`,
+        status: 'successful',
+        timestamp: { seconds: Math.floor(Date.now() / 1000) },
+      };
+
+      try {
+        const userRef = doc(db, 'users', userId);
+        const txRef = collection(userRef, 'transactions');
+        await addDoc(txRef, {
+          ...newTx,
+          timestamp: serverTimestamp(),
+        });
+        await updateDoc(userRef, {
+          balance: increment(-netDeduction),
+        });
+      } catch (err) {
+        console.warn('Firestore fallback sync:', err);
+      }
+
       setBalance(balance - netDeduction);
       if (onSuccessTransaction) {
-        onSuccessTransaction({
-          amount: amt,
-          type: 'airtime',
-          recipient: `${network} Airtime (${phoneNumber})`,
-          timestamp: { seconds: Math.floor(Date.now() / 1000) },
-        });
+        onSuccessTransaction(newTx);
       }
+
+      // Trigger real SMS alert
+      fetch('/api/send-sms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phoneNumber: userId,
+          amount: amt,
+        }),
+      }).catch(console.warn);
+
       setShowSuccess(true);
-    }, 1000);
+    } catch (err) {
+      console.error('Airtime recharge failed:', err);
+      alert('Airtime recharge failed. Please retry.');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   if (showSuccess) {

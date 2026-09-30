@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, Check, ShieldCheck, Loader2 } from 'lucide-react';
 import { db } from '../../lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, addDoc, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
 
 interface ToPalmPayModalProps {
   balance: number;
@@ -79,7 +79,7 @@ export default function ToPalmPayModal({
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const num = Number(amount);
     if (num <= 0) {
@@ -92,23 +92,83 @@ export default function ToPalmPayModal({
     }
 
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      setBalance(balance - num);
+    try {
+      const senderId = userProfile.phoneNumber || '08082076038';
       const finalRecipient = recipientName || 'PalmPay User (' + recipientPhone.slice(-4) + ')';
 
-      if (onSuccessTransaction) {
-        onSuccessTransaction({
-          amount: num,
-          type: 'transfer',
-          recipient: finalRecipient,
-          accountNumber: recipientPhone,
-          bankName: 'PalmPay Instant',
-          timestamp: { seconds: Math.floor(Date.now() / 1000) },
+      const newTx = {
+        amount: num,
+        formattedAmount: `-₦${num.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`,
+        type: 'transfer',
+        category: 'transfer',
+        recipient: finalRecipient,
+        accountNumber: recipientPhone,
+        bankName: 'PalmPay Instant',
+        senderName: userProfile.fullName || 'Mathias Danlami',
+        title: `Send - ${finalRecipient}`,
+        status: 'successful',
+        timestamp: { seconds: Math.floor(Date.now() / 1000) },
+      };
+
+      // 1. Update Sender in Firestore
+      try {
+        const senderRef = doc(db, 'users', senderId);
+        const senderTxRef = collection(senderRef, 'transactions');
+        await addDoc(senderTxRef, {
+          ...newTx,
+          timestamp: serverTimestamp(),
         });
+        await updateDoc(senderRef, {
+          balance: increment(-num),
+        });
+
+        // 2. If recipient is a registered user, credit them in Firestore!
+        const recipientRef = doc(db, 'users', recipientPhone);
+        const recipientSnap = await getDoc(recipientRef);
+        if (recipientSnap.exists()) {
+          const recTxRef = collection(recipientRef, 'transactions');
+          await addDoc(recTxRef, {
+            amount: num,
+            formattedAmount: `+₦${num.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`,
+            type: 'credit',
+            category: 'transfer',
+            recipient: recipientSnap.data()?.fullName || finalRecipient,
+            accountNumber: recipientPhone,
+            senderName: userProfile.fullName || 'Mathias Danlami',
+            title: `Received from ${userProfile.fullName || 'PalmPay User'}`,
+            status: 'successful',
+            timestamp: serverTimestamp(),
+          });
+          await updateDoc(recipientRef, {
+            balance: increment(num),
+          });
+        }
+      } catch (err) {
+        console.warn('Firestore fallback sync:', err);
       }
+
+      setBalance(balance - num);
+      if (onSuccessTransaction) {
+        onSuccessTransaction(newTx);
+      }
+
+      // Dispatch real SMS alert
+      fetch('/api/send-sms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phoneNumber: senderId,
+          amount: num,
+        }),
+      }).catch(console.warn);
+
       setShowSuccess(true);
-    }, 1000);
+    } catch (err) {
+      console.error('PalmPay transfer failed:', err);
+      alert('Transfer failed. Please check details and try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (showSuccess) {

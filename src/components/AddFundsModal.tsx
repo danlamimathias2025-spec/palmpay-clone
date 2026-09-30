@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { X, ArrowDownToLine, Check, Sparkles, Building2, User, CreditCard } from 'lucide-react';
+import { X, ArrowDownToLine, Check, Sparkles, Building2, User, CreditCard, Copy } from 'lucide-react';
 import { db } from '../lib/firebase';
 import { doc, addDoc, collection, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
+import { normalizePalmPayAccountNumber } from '../utils/account';
 
 interface AddFundsModalProps {
   balance: number;
@@ -27,6 +28,9 @@ export default function AddFundsModal({
   const [narration, setNarration] = useState('Payment');
   const [isProcessing, setIsProcessing] = useState(false);
   const [createdTx, setCreatedTx] = useState<any>(null);
+  const [copiedAcc, setCopiedAcc] = useState(false);
+
+  const receivingAcc = normalizePalmPayAccountNumber(userProfile.accountNumber || userProfile.phoneNumber);
 
   const bankOptions = [
     'Access Bank',
@@ -196,9 +200,38 @@ export default function AddFundsModal({
           </div>
         </div>
 
-        <p className="text-xs text-white/60 mb-4 leading-snug">
-          Specify deposit details. The sender name will automatically appear on the Transaction Receipt and History list as requested!
-        </p>
+        {/* Dedicated 10-Digit Unique Funds ID Receiving Card */}
+        <div className="mirror-glass rounded-2xl p-3.5 mb-4 border border-emerald-500/30 bg-emerald-500/10 text-left">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-300 flex items-center gap-1">
+              <Sparkles size={11} /> 10-Digit Receiving Funds ID
+            </span>
+            <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-bold">
+              PalmPay MFB
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xl font-mono font-extrabold text-white tracking-widest">{receivingAcc}</p>
+              <p className="text-[11px] text-white/70 font-medium">{userProfile.fullName || 'Mathias Danlami'}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                navigator.clipboard.writeText(receivingAcc);
+                setCopiedAcc(true);
+                setTimeout(() => setCopiedAcc(false), 2000);
+              }}
+              className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-black font-bold text-xs flex items-center gap-1 shadow-md transition-all active:scale-95"
+            >
+              {copiedAcc ? <Check size={13} /> : <Copy size={13} />}
+              <span>{copiedAcc ? 'Copied' : 'Copy'}</span>
+            </button>
+          </div>
+          <p className="text-[10px] text-emerald-200/70 mt-1">
+            Send deposits from Site A or any banking app to this 10-digit number to instantly credit your account.
+          </p>
+        </div>
 
         <form onSubmit={handleFundSubmit} className="space-y-3.5">
           {/* Amount */}

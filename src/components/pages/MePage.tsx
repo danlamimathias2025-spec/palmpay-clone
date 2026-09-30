@@ -13,12 +13,14 @@ import {
   Sun,
   UserCheck
 } from 'lucide-react';
+import { normalizePalmPayAccountNumber } from '../../utils/account';
 
 interface MePageProps {
   userProfile: {
     fullName: string;
     userName: string;
     phoneNumber: string;
+    accountNumber?: string;
     imageUrl?: string;
   };
   balance: number;
@@ -42,8 +44,10 @@ export default function MePage({
 }: MePageProps) {
   const [copied, setCopied] = React.useState(false);
 
+  const accountNum = normalizePalmPayAccountNumber(userProfile.accountNumber || userProfile.phoneNumber);
+
   const handleCopy = () => {
-    navigator.clipboard?.writeText(userProfile.phoneNumber || '08082076038');
+    navigator.clipboard?.writeText(accountNum);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -79,16 +83,18 @@ export default function MePage({
               </span>
             </div>
 
-            <div className="flex items-center gap-1 text-xs text-white/70 mt-0.5">
-              <span>PalmPay No: {userProfile.phoneNumber || '08082076038'}</span>
+            <div className="flex items-center gap-1.5 text-xs text-white/90 mt-1">
+              <span className="text-purple-200 font-semibold">Funds ID:</span>
+              <span className="font-mono font-bold text-emerald-400 text-sm tracking-wider">{accountNum}</span>
               <button
                 onClick={handleCopy}
                 className="p-1 text-purple-300 hover:text-white transition-colors"
-                title="Copy account number"
+                title="Copy 10-digit Funds ID"
               >
-                {copied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
+                {copied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
               </button>
             </div>
+            <p className="text-[10px] text-white/50 mt-0.5">Mobile: {userProfile.phoneNumber || '08082076038'}</p>
           </div>
         </div>
 

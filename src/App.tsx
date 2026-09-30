@@ -22,7 +22,7 @@ import TransactionReceipt from './components/TransactionReceipt';
 import LoginScreen from './components/LoginScreen';
 import RegistrationScreen from './components/RegistrationScreen';
 import SplashScreen from './components/SplashScreen';
-import { generatePalmPayAccountNumber } from './utils/account';
+import { generatePalmPayAccountNumber, normalizePalmPayAccountNumber } from './utils/account';
 
 // Modals
 import TransferModal from './components/TransferModal';
@@ -219,9 +219,11 @@ export default function App() {
               if (typeof data.balance === 'number') {
                 setBalance(data.balance);
               }
+              const safeAcc = normalizePalmPayAccountNumber(data.accountNumber || data.phoneNumber || userProfile.phoneNumber);
               setUserProfile((prev) => ({
                 ...prev,
                 ...data,
+                accountNumber: safeAcc,
                 balance: data.balance ?? prev.balance,
               }));
             } else {

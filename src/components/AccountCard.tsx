@@ -1,15 +1,27 @@
 import React, { useState } from 'react';
-import { Eye, EyeOff, ShieldCheck, ChevronRight, Coins } from 'lucide-react';
+import { Eye, EyeOff, ShieldCheck, ChevronRight, Coins, Copy, Check } from 'lucide-react';
+import { normalizePalmPayAccountNumber } from '../utils/account';
 
 interface AccountCardProps {
   balance: number;
+  accountNumber?: string;
   onAddMoney: () => void;
   onViewHistory: () => void;
   onEarningsClick: () => void;
 }
 
-export default function AccountCard({ balance, onAddMoney, onViewHistory, onEarningsClick }: AccountCardProps) {
+export default function AccountCard({ balance, accountNumber, onAddMoney, onViewHistory, onEarningsClick }: AccountCardProps) {
   const [showBalance, setShowBalance] = useState(true);
+  const [copied, setCopied] = useState(false);
+
+  const accountNum = normalizePalmPayAccountNumber(accountNumber || '8082076038');
+
+  const handleCopy = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigator.clipboard?.writeText(accountNum);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <div className="px-4 py-2">
@@ -60,6 +72,19 @@ export default function AccountCard({ balance, onAddMoney, onViewHistory, onEarn
             >
               Add Money
             </button>
+          </div>
+
+          {/* 10-Digit Unique Funds ID Badge */}
+          <div className="flex items-center gap-1.5 mt-1.5">
+            <div
+              onClick={handleCopy}
+              className="inline-flex items-center gap-1.5 bg-black/30 hover:bg-black/45 px-2.5 py-1 rounded-full text-[11px] text-white/90 border border-white/10 cursor-pointer active:scale-95 transition-all shadow-sm"
+              title="Click to copy 10-digit Funds ID for receiving deposits"
+            >
+              <span className="text-[10px] text-purple-200 uppercase font-semibold">Funds ID:</span>
+              <span className="font-mono font-bold text-emerald-400 tracking-wider">{accountNum}</span>
+              {copied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} className="text-white/70" />}
+            </div>
           </div>
         </div>
 

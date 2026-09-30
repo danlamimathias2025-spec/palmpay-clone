@@ -100,12 +100,12 @@ export default function AccountPage({ userProfile, setUserProfile, onLogout }: {
 
         {/* 10-Digit PalmPay Account Number Badge */}
         <div className="mt-3 inline-flex items-center gap-2 bg-black/30 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/20">
-          <span className="text-xs text-white/80 font-medium">PalmPay A/C:</span>
-          <span className="font-mono font-bold text-emerald-400 text-sm">{accountNum}</span>
+          <span className="text-xs text-white/80 font-medium">Funds ID (10-Digit):</span>
+          <span className="font-mono font-bold text-emerald-400 text-sm tracking-wider">{accountNum}</span>
           <button
             onClick={copyAccount}
             className="text-white/80 hover:text-white p-0.5 active:scale-90"
-            title="Copy Account Number"
+            title="Copy 10-digit Funds ID"
           >
             {copied ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
           </button>

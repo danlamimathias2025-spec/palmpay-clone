@@ -14,6 +14,7 @@ interface HomePageProps {
     fullName: string;
     userName: string;
     phoneNumber: string;
+    accountNumber?: string;
     imageUrl?: string;
   };
   onSupportClick: () => void;
@@ -85,6 +86,7 @@ export default function HomePage({
       {/* 2. Available Balance Card */}
       <AccountCard
         balance={balance}
+        accountNumber={userProfile.accountNumber}
         onAddMoney={onAddMoney}
         onViewHistory={onViewHistory}
         onEarningsClick={onEarningsClick}

@@ -299,7 +299,25 @@ async function startServer() {
         });
       }
 
-      const cleanAcc = String(accountNumber).trim();
+      // Normalize incoming account number to exact 10-digit Unique Funds ID
+      let rawAcc = String(accountNumber).trim().replace(/\D/g, "");
+      let cleanAcc = rawAcc;
+
+      // If provided with country prefix '234'
+      if (cleanAcc.startsWith("234") && cleanAcc.length > 10) {
+        cleanAcc = cleanAcc.slice(3);
+      }
+      // If 11 digits starting with 0, strip leading 0 to get the 10-digit unique funds ID
+      if (cleanAcc.startsWith("0") && cleanAcc.length === 11) {
+        cleanAcc = cleanAcc.slice(1);
+      } else if (cleanAcc.startsWith("0") && cleanAcc.length > 10) {
+        cleanAcc = cleanAcc.replace(/^0+/, "");
+      }
+      // Ensure strictly 10 digits
+      if (cleanAcc.length > 10) {
+        cleanAcc = cleanAcc.slice(-10);
+      }
+
       const cleanRef = String(transactionReference).trim();
       const cleanSender = String(senderName).trim();
 
@@ -326,7 +344,7 @@ async function startServer() {
       }
 
       // 3. DATABASE LOOKUP & USER ROUTING:
-      // Search Site B database for user where user.accountNumber === body.accountNumber
+      // Search Site B database for user where user.accountNumber === cleanAcc (10-digit unique funds ID)
       const usersCol = collection(db, "users");
       const qAcc = query(usersCol, where("accountNumber", "==", cleanAcc));
       const querySnap = await getDocs(qAcc);
@@ -339,30 +357,38 @@ async function startServer() {
         matchedUserId = userDocSnap.id;
         matchedUserData = userDocSnap.data();
       } else {
-        // Fallback: Check if document ID directly equals accountNumber
-        const directDoc = await getDoc(doc(db, "users", cleanAcc));
-        if (directDoc.exists()) {
-          matchedUserId = directDoc.id;
-          matchedUserData = directDoc.data();
+        // Also search by phoneNumber == '0' + cleanAcc
+        const qPhone = query(usersCol, where("phoneNumber", "==", "0" + cleanAcc));
+        const phoneSnap = await getDocs(qPhone);
+        if (!phoneSnap.empty) {
+          matchedUserId = phoneSnap.docs[0].id;
+          matchedUserData = phoneSnap.docs[0].data();
         } else {
-          // Check if cleanAcc is phone without leading 0 (e.g., '08082076038' vs '8082076038')
-          const directWithZero = await getDoc(doc(db, "users", "0" + cleanAcc));
-          if (directWithZero.exists()) {
-            matchedUserId = directWithZero.id;
-            matchedUserData = directWithZero.data();
-          } else if (cleanAcc === "8082076038" || cleanAcc === "08082076038") {
-            // Primary existing user Mathias Danlami seed into Firestore if empty
-            matchedUserId = "08082076038";
-            matchedUserData = {
-              fullName: "Mathias Danlami",
-              userName: "Mathias",
-              phoneNumber: "08082076038",
-              accountNumber: "8082076038",
-              balance: 0.62,
-              pin: "1234",
-              createdAt: serverTimestamp(),
-            };
-            await setDoc(doc(db, "users", "08082076038"), matchedUserData, { merge: true });
+          // Fallback: Check if document ID directly equals accountNumber
+          const directDoc = await getDoc(doc(db, "users", cleanAcc));
+          if (directDoc.exists()) {
+            matchedUserId = directDoc.id;
+            matchedUserData = directDoc.data();
+          } else {
+            // Check if cleanAcc is phone without leading 0 (e.g., '08082076038' vs '8082076038')
+            const directWithZero = await getDoc(doc(db, "users", "0" + cleanAcc));
+            if (directWithZero.exists()) {
+              matchedUserId = directWithZero.id;
+              matchedUserData = directWithZero.data();
+            } else if (cleanAcc === "8082076038") {
+              // Primary existing user Mathias Danlami seed into Firestore if empty
+              matchedUserId = "08082076038";
+              matchedUserData = {
+                fullName: "Mathias Shekwoaga Danlami",
+                userName: "Splenzzy",
+                phoneNumber: "08082076038",
+                accountNumber: "8082076038",
+                balance: 0.62,
+                pin: "1234",
+                createdAt: serverTimestamp(),
+              };
+              await setDoc(doc(db, "users", "08082076038"), matchedUserData, { merge: true });
+            }
           }
         }
       }

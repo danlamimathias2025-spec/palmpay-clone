@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { TrendingUp, ShieldCheck, ChevronRight, Lock, Users, Sparkles, PlusCircle } from 'lucide-react';
+import { formatNaira } from '../../utils/format';
 
 interface WealthPageProps {
   balance: number;
@@ -142,7 +143,7 @@ export default function WealthPage({ balance, onDepositSuccess }: WealthPageProp
           <div className="mirror-glass-modal rounded-3xl p-6 w-full max-w-sm">
             <h3 className="text-lg font-bold text-white font-script mb-1">Save & Earn Interest</h3>
             <p className="text-xs text-white/70 mb-4">
-              Transfer funds from available balance (₦{balance.toFixed(2)}) to your Wealth account.
+              Transfer funds from available balance ({formatNaira(balance)}) to your Wealth account.
             </p>
 
             <div className="space-y-3 mb-5">

@@ -10,6 +10,7 @@ import {
   PieChart,
   X,
 } from 'lucide-react';
+import NetworkLogo, { detectTelecomNetwork } from './NetworkLogo';
 
 export interface TransactionItem {
   id: string;
@@ -19,7 +20,7 @@ export interface TransactionItem {
   senderBank?: string;
   amount: number | string;
   formattedAmount: string;
-  type: 'credit' | 'transfer' | 'interest' | 'autosave' | 'airtime' | 'electricity' | 'betting' | 'bill';
+  type: 'credit' | 'transfer' | 'interest' | 'autosave' | 'airtime' | 'data' | 'electricity' | 'betting' | 'bill';
   date: string;
   month: 'Jan' | 'Feb' | 'Mar' | 'Apr' | 'May' | 'Jun' | 'Jul' | 'Aug' | 'Sep' | 'Oct' | 'Nov' | 'Dec';
   category: 'transfer' | 'airtime' | 'electricity' | 'cashbox' | 'bill' | 'other';
@@ -140,13 +141,9 @@ export default function TransactionHistoryView({
         </div>
       );
     }
-    if (tx.type === 'airtime') {
-      // Yellow round MTN badge
-      return (
-        <div className="w-9 h-9 rounded-full bg-[#ffcc00] text-black flex items-center justify-center shrink-0 font-extrabold text-[9px] shadow-sm border border-yellow-300">
-          MTN
-        </div>
-      );
+    if (tx.type === 'airtime' || tx.type === 'data') {
+      const net = detectTelecomNetwork(tx) || 'mtn';
+      return <NetworkLogo network={net} size="sm" />;
     }
     if (tx.type === 'electricity') {
       // White round AEDC badge

@@ -1,4 +1,5 @@
 import { ArrowDownLeft, ArrowUpRight, ReceiptText } from 'lucide-react';
+import { formatNaira } from '../utils/format';
 
 export default function RecentTransactions({ transactions, onSelect, sortBy, setSortBy }: { transactions: any[], onSelect: (t: any) => void, sortBy: string, setSortBy: (s: any) => void }) {
   if (transactions.length === 0) {
@@ -46,7 +47,7 @@ export default function RecentTransactions({ transactions, onSelect, sortBy, set
               </div>
             </div>
             <p className={`text-sm font-semibold ${t.type === 'credit' ? 'text-green-600 dark:text-green-400' : 'text-gray-900 dark:text-white'}`}>
-                {t.type === 'credit' ? '+' : '-'}₦{Number(t.amount).toLocaleString()}
+                {t.type === 'credit' ? '+' : '-'}{formatNaira(t.amount)}
             </p>
           </div>
         ))}

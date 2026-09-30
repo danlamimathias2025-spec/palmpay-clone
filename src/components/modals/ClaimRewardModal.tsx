@@ -1,5 +1,6 @@
 import React from 'react';
 import { Gift, Sparkles, Check, ArrowRight } from 'lucide-react';
+import { formatNaira } from '../../utils/format';
 
 interface ClaimRewardModalProps {
   title: string;
@@ -37,7 +38,7 @@ export default function ClaimRewardModal({
         <div className="my-4 p-3 bg-black/40 rounded-2xl border border-white/10">
           <span className="text-xs text-white/60 block">Bonus Reward:</span>
           <span className="text-3xl font-black text-emerald-400 font-sans tracking-tight">
-            +₦{bonusAmount.toFixed(2)}
+            +{formatNaira(bonusAmount)}
           </span>
           <p className="text-[10px] text-white/50 mt-1">Instant addition to your Available Balance</p>
         </div>

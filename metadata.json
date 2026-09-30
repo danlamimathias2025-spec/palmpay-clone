@@ -1,6 +1,6 @@
 {
-  "name": "TENN MFB",
-  "description": "Fintech mobile dashboard for managing finances, loans, and services.",
+  "name": "PalmPay - Simple, Fast, Secure",
+  "description": "Experience seamless mobile payments, transfers, high-yield savings, and bill payments with PalmPay.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

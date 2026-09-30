@@ -3,6 +3,7 @@ import { X, ArrowDownToLine, Check, Sparkles, Building2, User, CreditCard, Copy 
 import { db } from '../lib/firebase';
 import { doc, addDoc, collection, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
 import { normalizePalmPayAccountNumber } from '../utils/account';
+import { formatNaira } from '../utils/format';
 
 interface AddFundsModalProps {
   balance: number;
@@ -238,7 +239,7 @@ export default function AddFundsModal({
           <div>
             <div className="flex justify-between items-center text-xs mb-1">
               <span className="text-white/70">Deposit Amount (₦)</span>
-              <span className="text-white/50">Bal: ₦{balance.toFixed(2)}</span>
+              <span className="text-white/50">Bal: {formatNaira(balance)}</span>
             </div>
 
             <input

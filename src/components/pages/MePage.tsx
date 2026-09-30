@@ -14,6 +14,7 @@ import {
   UserCheck
 } from 'lucide-react';
 import { normalizePalmPayAccountNumber } from '../../utils/account';
+import { formatNaira } from '../../utils/format';
 
 interface MePageProps {
   userProfile: {
@@ -102,7 +103,7 @@ export default function MePage({
         <div className="grid grid-cols-2 gap-2 mt-4 pt-4 border-t border-white/10 text-xs">
           <div>
             <span className="text-white/50 block">Available Balance</span>
-            <span className="text-sm font-extrabold text-white font-sans">₦{balance.toFixed(2)}</span>
+            <span className="text-sm font-extrabold text-white font-sans">{formatNaira(balance)}</span>
           </div>
           <div>
             <span className="text-white/50 block">Daily Limit</span>

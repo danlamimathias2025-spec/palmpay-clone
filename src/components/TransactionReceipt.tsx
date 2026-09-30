@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { ArrowLeft, Check, ChevronRight, Copy, Headphones, CheckCircle2, Share2, Download } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
+import NetworkLogo, { detectTelecomNetwork } from './NetworkLogo';
 
 interface TransactionReceiptProps {
   transaction: any;
@@ -91,9 +92,34 @@ export default function TransactionReceipt({
     }
   };
 
-  // Helper to render authentic bank logos
+  // Helper to render authentic bank logos or telecom network logos
   const renderBankLogo = (bank: string) => {
+    // 0. Check Telecom Network (Airtime / Data)
+    const telecomNet = detectTelecomNetwork(transaction);
+    if (telecomNet || transaction.type === 'airtime' || transaction.type === 'data') {
+      return <NetworkLogo network={telecomNet || 'mtn'} size="lg" />;
+    }
+
     const b = (bank || '').toLowerCase();
+
+    // 0b. Electricity Providers
+    if (b.includes('aedc') || b.includes('ikedc') || b.includes('ekedc') || b.includes('ibedc') || transaction.type === 'electricity') {
+      return (
+        <div className="w-13 h-13 rounded-full bg-white flex flex-col items-center justify-center shadow-md border border-gray-200 text-[#059669]">
+          <span className="text-[10px] font-black uppercase tracking-tight">AEDC</span>
+          <span className="text-[7px] text-gray-500 font-semibold leading-none">Power</span>
+        </div>
+      );
+    }
+
+    // 0c. Betting
+    if (b.includes('bet') || b.includes('sporty') || b.includes('1xbet')) {
+      return (
+        <div className="w-13 h-13 rounded-full bg-[#1b5e20] flex items-center justify-center shadow-md border-2 border-white text-white font-extrabold text-xs">
+          BET
+        </div>
+      );
+    }
 
     // 1. PalmPay Logo
     if (b.includes('palm') || b.includes('palmpay')) {
@@ -224,7 +250,7 @@ export default function TransactionReceipt({
 
           {/* Amount */}
           <h2 className="text-3xl sm:text-4xl font-extrabold text-[#111827] my-2 tracking-tight font-sans">
-            {isIncoming ? '+' : '-'}₦ {formattedNum}
+            {isIncoming ? '+' : '-'}₦{formattedNum}
           </h2>
 
           {/* Status Badge: Green Check + Successful */}

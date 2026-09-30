@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Smartphone, Check, Sparkles } from 'lucide-react';
 import { db } from '../lib/firebase';
 import { doc, collection, addDoc, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
+import { formatNaira } from '../utils/format';
 
 interface AirtimeModalProps {
   balance: number;
@@ -50,8 +51,12 @@ export default function AirtimeModal({
         formattedAmount: `-₦${amt.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`,
         type: 'airtime',
         category: 'airtime',
-        title: `Top up Airtime`,
+        title: `${network} Airtime Top up`,
+        network: network,
+        senderBank: `${network} Telecom`,
         recipient: `${network} Airtime (${phoneNumber})`,
+        accountNumber: phoneNumber,
+        narration: `${network} Airtime Top up to ${phoneNumber}`,
         status: 'successful',
         timestamp: { seconds: Math.floor(Date.now() / 1000) },
       };
@@ -177,7 +182,7 @@ export default function AirtimeModal({
           <div>
             <div className="flex justify-between items-center mb-1 text-xs">
               <span className="text-white/70">Amount (₦)</span>
-              <span className="text-white/50">Bal: ₦{balance.toFixed(2)}</span>
+              <span className="text-white/50">Bal: {formatNaira(balance)}</span>
             </div>
             <div className="grid grid-cols-3 gap-2 mb-2">
               {presets.map((preset) => (

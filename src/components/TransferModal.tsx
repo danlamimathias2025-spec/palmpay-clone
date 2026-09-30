@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { X, Check, Landmark, ShieldCheck, ArrowRight } from 'lucide-react';
 import { db } from '../lib/firebase';
-import { doc, addDoc, collection, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
+import { doc, addDoc, collection, updateDoc, increment, serverTimestamp, getDoc } from 'firebase/firestore';
+import { formatNaira } from '../utils/format';
 
 interface TransferModalProps {
   balance: number;
@@ -149,6 +150,35 @@ export default function TransferModal({
         await updateDoc(userRef, {
           balance: increment(-amount),
         });
+
+        // If recipient is PalmPay, credit recipient in Firestore
+        const isPalmPay = (formData.bankName || '').toLowerCase().includes('palmpay') || formData.bankCode === '999991';
+        if (isPalmPay) {
+          const recCandidates = [formData.accountNumber, '0' + formData.accountNumber];
+          for (const cand of recCandidates) {
+            const recRef = doc(db, 'users', cand);
+            const recSnap = await getDoc(recRef);
+            if (recSnap.exists()) {
+              await addDoc(collection(recRef, 'transactions'), {
+                amount,
+                formattedAmount: `+₦${amount.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`,
+                type: 'credit',
+                category: 'transfer',
+                senderName: userProfile.fullName || 'Mathias Danlami',
+                senderBank: 'PalmPay Transfer',
+                recipient: formData.accountName || 'PalmPay User',
+                accountNumber: formData.accountNumber,
+                title: `Received from ${userProfile.fullName || 'Mathias Danlami'}`,
+                status: 'successful',
+                timestamp: serverTimestamp(),
+              });
+              await updateDoc(recRef, {
+                balance: increment(amount),
+              });
+              break;
+            }
+          }
+        }
       } catch (err) {
         console.warn('Firestore offline/fallback update:', err);
       }
@@ -287,7 +317,7 @@ export default function TransferModal({
           <div>
             <div className="flex justify-between items-center mb-1 text-xs">
               <span className="text-white/70">Amount (₦)</span>
-              <span className="text-white/50">Bal: ₦{balance.toFixed(2)}</span>
+              <span className="text-white/50">Bal: {formatNaira(balance)}</span>
             </div>
             <input
               type="number"

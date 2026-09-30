@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, ArrowDownUp, Check, Sparkles } from 'lucide-react';
 import { db } from '../lib/firebase';
 import { doc, collection, addDoc, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
+import { formatNaira } from '../utils/format';
 
 interface DataModalProps {
   balance: number;
@@ -45,8 +46,12 @@ export default function DataModal({
         formattedAmount: `-₦${selectedPlan.price.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`,
         type: 'data',
         category: 'other',
-        title: `Buy Data Bundle`,
+        title: `${network} Data ${selectedPlan.plan}`,
+        network: network,
+        senderBank: `${network} Telecom`,
         recipient: `${network} ${selectedPlan.plan} (${phoneNumber})`,
+        accountNumber: phoneNumber,
+        narration: `${network} ${selectedPlan.plan} Data to ${phoneNumber}`,
         status: 'successful',
         timestamp: { seconds: Math.floor(Date.now() / 1000) },
       };
@@ -192,7 +197,7 @@ export default function DataModal({
             disabled={isProcessing}
             className="w-full py-3 rounded-xl bg-[#7846f7] hover:bg-[#6836ea] text-white font-bold text-sm shadow-md active:scale-95 transition-all"
           >
-            {isProcessing ? 'Activating...' : `Pay ₦${selectedPlan.price} (Bal: ₦${balance.toFixed(2)})`}
+            {isProcessing ? 'Activating...' : `Pay ₦${selectedPlan.price} (Bal: ${formatNaira(balance)})`}
           </button>
         </form>
       </div>

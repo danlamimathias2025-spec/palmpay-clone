@@ -24,6 +24,7 @@ import RegistrationScreen from './components/RegistrationScreen';
 import SplashScreen from './components/SplashScreen';
 import FlashAlertOverlay from './components/FlashAlertOverlay';
 import { generatePalmPayAccountNumber, normalizePalmPayAccountNumber } from './utils/account';
+import { formatNaira } from './utils/format';
 import {
   FlashAlertData,
   playFlashChime,
@@ -77,6 +78,9 @@ export default function App() {
       amount: 0,
       formattedAmount: '0.00',
       type: 'airtime',
+      network: 'MTN',
+      senderBank: 'MTN Telecom',
+      recipient: 'MTN Airtime (08082076038)',
       date: 'Aug 29, 2026 10:35 PM',
       month: 'Aug',
       category: 'airtime',
@@ -433,7 +437,7 @@ export default function App() {
         id: `bonus-${Date.now()}`,
         title: claimModalData.title,
         amount: bonus,
-        formattedAmount: `+${bonus.toFixed(2)}`,
+        formattedAmount: `+${formatNaira(bonus)}`,
         type: 'credit',
         senderName: 'PALMPAY BONUS',
         category: 'other',
@@ -689,7 +693,7 @@ export default function App() {
               handleAddTransaction({
                 ...tx,
                 title: `Send - ${tx.recipient || 'Commercial Bank'}`,
-                formattedAmount: `-${Number(tx.amount).toFixed(2)}`,
+                formattedAmount: `-${formatNaira(tx.amount)}`,
                 category: 'transfer',
               });
             }}
@@ -706,7 +710,7 @@ export default function App() {
               handleAddTransaction({
                 ...tx,
                 title: `Send - ${tx.recipient || 'PalmPay User'}`,
-                formattedAmount: `-${Number(tx.amount).toFixed(2)}`,
+                formattedAmount: `-${formatNaira(tx.amount)}`,
                 category: 'transfer',
               });
             }}
@@ -737,7 +741,7 @@ export default function App() {
               handleAddTransaction({
                 ...tx,
                 title: 'Top up Airtime',
-                formattedAmount: `-${Number(tx.amount).toFixed(2)}`,
+                formattedAmount: `-${formatNaira(tx.amount)}`,
                 category: 'airtime',
               });
             }}
@@ -754,7 +758,7 @@ export default function App() {
               handleAddTransaction({
                 ...tx,
                 title: tx.recipient || 'Data Recharge',
-                formattedAmount: `-${Number(tx.amount).toFixed(2)}`,
+                formattedAmount: `-${formatNaira(tx.amount)}`,
                 category: 'airtime',
               });
             }}
@@ -770,7 +774,7 @@ export default function App() {
               handleAddTransaction({
                 ...tx,
                 title: tx.recipient || 'Betting Wallet Fund',
-                formattedAmount: `-${Number(tx.amount).toFixed(2)}`,
+                formattedAmount: `-${formatNaira(tx.amount)}`,
                 category: 'other',
               });
             }}

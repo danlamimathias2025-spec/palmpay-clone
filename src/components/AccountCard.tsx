@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Eye, EyeOff, ShieldCheck, ChevronRight, Coins, Copy, Check } from 'lucide-react';
 import { normalizePalmPayAccountNumber } from '../utils/account';
+import { formatNaira } from '../utils/format';
 
 interface AccountCardProps {
   balance: number;
@@ -62,7 +63,7 @@ export default function AccountCard({ balance, accountNumber, onAddMoney, onView
           <div className="flex items-center justify-between mt-1 mb-1">
             <div className="flex items-baseline">
               <span className="text-2xl sm:text-3xl font-bold tracking-tight text-white font-sans tabular-nums">
-                {showBalance ? `₦${balance.toFixed(2)}` : '••••••••'}
+                {showBalance ? formatNaira(balance) : '••••••••'}
               </span>
             </div>
 

@@ -21,7 +21,7 @@ export interface TransactionItem {
   formattedAmount: string;
   type: 'credit' | 'transfer' | 'interest' | 'autosave' | 'airtime' | 'electricity';
   date: string;
-  month: 'Sep' | 'Aug' | 'Jul';
+  month: 'Jan' | 'Feb' | 'Mar' | 'Apr' | 'May' | 'Jun' | 'Jul' | 'Aug' | 'Sep' | 'Oct' | 'Nov' | 'Dec';
   category: 'transfer' | 'airtime' | 'electricity' | 'cashbox' | 'other';
   status: 'successful' | 'pending' | 'failed';
   rawTimestamp?: number;

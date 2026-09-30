@@ -4,8 +4,8 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { db } from './lib/firebase';
-import { collection, doc, query, orderBy, onSnapshot } from 'firebase/firestore';
+import { db, ensureFirebaseAuth } from './lib/firebase';
+import { collection, doc, query, orderBy, onSnapshot, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 // Pages
 import HomePage from './components/pages/HomePage';
@@ -22,6 +22,7 @@ import TransactionReceipt from './components/TransactionReceipt';
 import LoginScreen from './components/LoginScreen';
 import RegistrationScreen from './components/RegistrationScreen';
 import SplashScreen from './components/SplashScreen';
+import { generatePalmPayAccountNumber } from './utils/account';
 
 // Modals
 import TransferModal from './components/TransferModal';
@@ -53,6 +54,7 @@ export default function App() {
     fullName: 'Mathias Danlami',
     userName: 'Mathias',
     phoneNumber: '08082076038',
+    accountNumber: generatePalmPayAccountNumber('08082076038'), // '8082076038' (10-digit by stripping leading 0)
     pin: '1234',
     imageUrl: '',
     balance: 0.62,
@@ -199,15 +201,56 @@ export default function App() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [claimModalData, setClaimModalData] = useState<{ title: string; bonus: number } | null>(null);
 
-  // Firestore sync if connected
+  // Firebase Auth & Firestore real-time sync
   useEffect(() => {
+    // Ensure Firebase Auth session
+    ensureFirebaseAuth().catch(console.warn);
+
     if (userProfile.phoneNumber) {
       try {
         const userRef = doc(db, 'users', userProfile.phoneNumber);
+
+        // 1. Sync User Profile in Real Time
+        const unsubUser = onSnapshot(
+          userRef,
+          (docSnap) => {
+            if (docSnap.exists()) {
+              const data = docSnap.data();
+              if (typeof data.balance === 'number') {
+                setBalance(data.balance);
+              }
+              setUserProfile((prev) => ({
+                ...prev,
+                ...data,
+                balance: data.balance ?? prev.balance,
+              }));
+            } else {
+              // Seed user profile into Firestore if not present
+              setDoc(
+                userRef,
+                {
+                  fullName: userProfile.fullName,
+                  userName: userProfile.userName,
+                  phoneNumber: userProfile.phoneNumber,
+                  accountNumber: userProfile.accountNumber || generatePalmPayAccountNumber(userProfile.phoneNumber),
+                  balance: balance,
+                  pin: userProfile.pin || '1234',
+                  createdAt: serverTimestamp(),
+                },
+                { merge: true }
+              ).catch(console.warn);
+            }
+          },
+          (err) => {
+            console.warn('User profile sync listener error:', err);
+          }
+        );
+
+        // 2. Sync Transactions Subcollection in Real Time
         const transactionsRef = collection(userRef, 'transactions');
         const q = query(transactionsRef, orderBy('timestamp', 'desc'));
 
-        const unsubscribe = onSnapshot(
+        const unsubTx = onSnapshot(
           q,
           (snapshot) => {
             if (!snapshot.empty) {
@@ -223,7 +266,7 @@ export default function App() {
                   formattedAmount: data.formattedAmount || `${data.type === 'credit' ? '+' : '-'}₦${Number(data.amount).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`,
                   type: data.type || 'transfer',
                   date: data.date || 'Just now',
-                  month: 'Sep' as const,
+                  month: (data.month || 'Sep') as 'Jan' | 'Feb' | 'Mar' | 'Apr' | 'May' | 'Jun' | 'Jul' | 'Aug' | 'Sep' | 'Oct' | 'Nov' | 'Dec',
                   category: data.category || 'transfer',
                   status: 'successful' as const,
                 };
@@ -240,11 +283,14 @@ export default function App() {
             }
           },
           (err) => {
-            console.warn('Firestore snapshot error (using local state):', err);
+            console.warn('Transactions snapshot error (using local state):', err);
           }
         );
 
-        return () => unsubscribe();
+        return () => {
+          unsubUser();
+          unsubTx();
+        };
       } catch (e) {
         console.warn('Firebase init warning:', e);
       }
@@ -312,11 +358,50 @@ export default function App() {
       return (
         <LoginScreen
           onLogin={async (phone) => {
-            setUserProfile((prev) => ({
-              ...prev,
-              phoneNumber: phone,
-              userName: 'Mathias',
-            }));
+            await ensureFirebaseAuth();
+            const acc = generatePalmPayAccountNumber(phone);
+            try {
+              const userRef = doc(db, 'users', phone);
+              const snap = await getDoc(userRef);
+              if (snap.exists()) {
+                const data = snap.data();
+                setUserProfile((prev) => ({
+                  ...prev,
+                  ...data,
+                  phoneNumber: phone,
+                  accountNumber: data.accountNumber || acc,
+                }));
+                if (typeof data.balance === 'number') {
+                  setBalance(data.balance);
+                }
+              } else {
+                await setDoc(
+                  userRef,
+                  {
+                    fullName: 'Mathias Danlami',
+                    userName: 'Mathias',
+                    phoneNumber: phone,
+                    accountNumber: acc,
+                    balance: 0.62,
+                    pin: '1234',
+                    createdAt: serverTimestamp(),
+                  },
+                  { merge: true }
+                );
+                setUserProfile((prev) => ({
+                  ...prev,
+                  phoneNumber: phone,
+                  accountNumber: acc,
+                }));
+              }
+            } catch (err) {
+              console.warn('Firebase login error:', err);
+              setUserProfile((prev) => ({
+                ...prev,
+                phoneNumber: phone,
+                accountNumber: acc,
+              }));
+            }
             setIsLoggedIn(true);
           }}
           onSwitchToRegister={() => setAuthMode('register')}
@@ -326,10 +411,25 @@ export default function App() {
       return (
         <RegistrationScreen
           onRegister={async (data) => {
+            await ensureFirebaseAuth();
+            const acc = data.accountNumber || generatePalmPayAccountNumber(data.phoneNumber);
+            const newProfile = {
+              ...data,
+              accountNumber: acc,
+              balance: 0.62,
+              createdAt: serverTimestamp(),
+            };
+            try {
+              const userRef = doc(db, 'users', data.phoneNumber);
+              await setDoc(userRef, newProfile, { merge: true });
+            } catch (err) {
+              console.warn('Firebase register error:', err);
+            }
             setUserProfile((prev) => ({
               ...prev,
               ...data,
-              userName: data.fullName?.split(' ')[0] || 'Mathias',
+              accountNumber: acc,
+              userName: data.fullName?.split(' ')[0] || data.userName || 'Mathias',
             }));
             setIsLoggedIn(true);
           }}

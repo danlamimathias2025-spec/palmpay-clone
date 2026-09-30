@@ -98,26 +98,12 @@ export default function TransactionReceipt({
     // 1. PalmPay Logo
     if (b.includes('palm') || b.includes('palmpay')) {
       return (
-        <div className="w-13 h-13 rounded-full bg-[#6c1cf5] p-1 flex items-center justify-center shadow-md border-2 border-white">
-          <div className="w-full h-full flex flex-col items-center justify-center">
-            {/* White rounded hexagon with geometric loop */}
-            <div className="w-6 h-6">
-              <svg viewBox="0 0 512 512" className="w-full h-full">
-                <g transform="translate(256, 256)">
-                  <path
-                    d="M 0 -195 C 20 -195, 38 -184, 48 -166 L 152 10 C 162 28, 162 48, 152 66 L 48 242 C 38 260, 20 271, 0 271 C -20 271, -38 260, -48 242 L -152 66 C -162 48, -162 28, -152 10 L -48 -166 C -38 -184, -20 -195, 0 -195 Z"
-                    fill="#ffffff"
-                  />
-                  <g fill="#6c1cf5">
-                    <path d="M -72 -18 L 44 -134 C 58 -148, 80 -148, 94 -134 L 116 -112 C 130 -98, 130 -76, 116 -62 L 36 18 L -6 60 L -48 18 L 32 -62 L 54 -84 L 2 -136 L -72 -62 Z" />
-                    <path d="M 72 94 L -44 210 C -58 224, -80 224, -94 210 L -116 188 C -130 174, -130 152, -112 138 L -36 58 L 6 16 L 48 58 L -32 138 L -54 160 L -2 212 L 72 138 Z" />
-                    <polygon points="0,5 30,35 0,65 -30,35" fill="#6c1cf5" />
-                  </g>
-                </g>
-              </svg>
-            </div>
-            <span className="text-[7px] font-black text-white tracking-tighter leading-none mt-0.5">palmpay</span>
-          </div>
+        <div className="w-13 h-13 rounded-full overflow-hidden shadow-md border-2 border-white bg-[#6700ea]">
+          <img
+            src="/palmpay_official_icon.png"
+            alt="PalmPay"
+            className="w-full h-full object-cover"
+          />
         </div>
       );
     }

@@ -160,8 +160,8 @@ export default function ToPalmPayModal({
         </button>
 
         <div className="flex items-center gap-2.5 mb-4">
-          <div className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center p-1 bg-[#6c1cf5]/20 border border-[#6c1cf5]/40 shadow-sm shrink-0">
-            <img src="/favicon.svg" alt="PalmPay" className="w-full h-full object-contain rounded-md" />
+          <div className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center p-0.5 bg-[#6700ea] shadow-sm shrink-0">
+            <img src="/palmpay_official_icon.png" alt="PalmPay" className="w-full h-full object-cover rounded-lg" />
           </div>
           <div>
             <h2 className="text-base font-bold text-white">To PalmPay Account</h2>

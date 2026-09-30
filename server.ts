@@ -281,17 +281,21 @@ async function startServer() {
         });
       }
 
-      // Parse JSON body: accountNumber, amount, senderName, transactionReference
-      const { accountNumber, amount, senderName, transactionReference } = req.body || {};
+      // Parse JSON body: accountNumber, amount, senderName, transactionReference with flexible key support
+      const body = req.body || {};
+      const accountNumberRaw = body.accountNumber || body.account_number || body.accountNo || body.fundsId || body.userId;
+      const amountRaw = body.amount ?? body.value ?? body.totalAmount;
+      const senderNameRaw = body.senderName || body.sender || body.source || body.from || body.payer || "Site A";
+      const transactionReferenceRaw = body.transactionReference || body.reference || body.ref || body.transactionId || body.txId || body.id;
 
-      if (!accountNumber || amount === undefined || amount === null || !senderName || !transactionReference) {
+      if (!accountNumberRaw || amountRaw === undefined || amountRaw === null || !senderNameRaw || !transactionReferenceRaw) {
         return res.status(400).json({
           success: false,
           message: "Invalid payload: accountNumber, amount, senderName, and transactionReference are required",
         });
       }
 
-      const parsedAmount = Number(amount);
+      const parsedAmount = Number(amountRaw);
       if (isNaN(parsedAmount) || parsedAmount <= 0) {
         return res.status(400).json({
           success: false,
@@ -300,7 +304,7 @@ async function startServer() {
       }
 
       // Normalize incoming account number to exact 10-digit Unique Funds ID
-      let rawAcc = String(accountNumber).trim().replace(/\D/g, "");
+      let rawAcc = String(accountNumberRaw).trim().replace(/\D/g, "");
       let cleanAcc = rawAcc;
 
       // If provided with country prefix '234'
@@ -318,8 +322,14 @@ async function startServer() {
         cleanAcc = cleanAcc.slice(-10);
       }
 
-      const cleanRef = String(transactionReference).trim();
-      const cleanSender = String(senderName).trim();
+      const cleanRef = String(transactionReferenceRaw).trim();
+      const cleanSender = String(senderNameRaw).trim();
+      const cleanSenderBank = body.senderBank || body.bankName || body.bank || body.sourceBank || "Site A Portal";
+      const cleanNarration = body.narration || body.description || body.remark || body.memo || body.title || `Received from ${cleanSender}`;
+      const cleanTitle = body.title ? String(body.title).trim() : (body.narration ? String(body.narration).trim() : `Received from ${cleanSender}`);
+      const cleanSessionId = body.sessionId || body.session_id || cleanRef;
+      const cleanStatus = body.status ? String(body.status).toLowerCase() : "successful";
+      const cleanCategory = body.category ? String(body.category).toLowerCase() : "transfer";
 
       if (!db) {
         console.error("[Webhook /api/receive-withdrawal] Firestore database not initialized");
@@ -454,7 +464,7 @@ async function startServer() {
           processedAt: serverTimestamp(),
         });
 
-        // Create new incoming transaction record in Site B history
+        // Create new incoming transaction record in Site B history with exact details
         const now = new Date();
         const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"] as const;
         const month = months[now.getMonth()];
@@ -463,38 +473,38 @@ async function startServer() {
         const txSubCol = collection(matchedUserRef, "transactions");
         const newTxDoc = doc(txSubCol);
 
-        t.set(newTxDoc, {
+        const exactRecord = {
           id: newTxDoc.id,
           userId: matchedUserId,
           type: "credit",
+          category: cleanCategory,
+          status: cleanStatus,
           amount: parsedAmount,
-          formattedAmount: `+${parsedAmount.toLocaleString("en-NG", { minimumFractionDigits: 2 })}`,
+          formattedAmount: `+₦${parsedAmount.toLocaleString("en-NG", { minimumFractionDigits: 2 })}`,
           senderName: cleanSender,
-          senderBank: "Site A (Withdrawal Webhook)",
+          senderBank: cleanSenderBank,
+          narration: cleanNarration,
+          title: cleanTitle,
           accountNumber: cleanAcc,
           reference: cleanRef,
-          status: "successful",
-          category: "transfer",
-          title: `Received from ${cleanSender}`,
-          recipient: freshUserSnap.data()?.fullName || "Account Owner",
-          date: dateFormatted,
-          month: month,
+          txId: cleanRef,
+          sessionId: cleanSessionId,
+          recipient: body.recipient || body.accountName || freshUserSnap.data()?.fullName || "Mathias Shekwoaga Danlami",
+          date: body.date || dateFormatted,
+          month: body.month || month,
           timestamp: serverTimestamp(),
           createdAt: serverTimestamp(),
-        });
+          rawPayload: body,
+          metadata: { ...body },
+        };
+
+        t.set(newTxDoc, exactRecord);
 
         // Write to top-level transactions for global audit trail
         const globalTxDoc = doc(db, "transactions", cleanRef);
         t.set(globalTxDoc, {
+          ...exactRecord,
           id: cleanRef,
-          userId: matchedUserId,
-          type: "credit",
-          amount: parsedAmount,
-          senderName: cleanSender,
-          accountNumber: cleanAcc,
-          reference: cleanRef,
-          status: "successful",
-          createdAt: serverTimestamp(),
         });
       });
 
@@ -508,7 +518,7 @@ async function startServer() {
 
       console.log(`[Webhook /api/receive-withdrawal] Successfully credited user ${matchedUserId} (A/C: ${cleanAcc}) with ₦${parsedAmount}. New balance: ₦${newBalance}`);
 
-      // 5. Return 200 OK
+      // 5. Return 200 OK with exact record details
       return res.status(200).json({
         success: true,
         message: "Account credited successfully",
@@ -516,8 +526,14 @@ async function startServer() {
           userId: matchedUserId,
           accountNumber: cleanAcc,
           amount: parsedAmount,
+          formattedAmount: `+₦${parsedAmount.toLocaleString("en-NG", { minimumFractionDigits: 2 })}`,
+          senderName: cleanSender,
+          senderBank: cleanSenderBank,
+          narration: cleanNarration,
+          title: cleanTitle,
           newBalance: newBalance,
           transactionReference: cleanRef,
+          status: cleanStatus,
         },
       });
     } catch (error: any) {

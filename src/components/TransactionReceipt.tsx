@@ -43,11 +43,11 @@ export default function TransactionReceipt({
   const completionTime = transaction.date || '17:17, Jul 15, 2026';
 
   // Deterministic or stored IDs
-  const txId = transaction.txId || `6037n6og${Math.abs(rawNum).toString().slice(0, 3)}d`;
-  const sessionId = transaction.sessionId || `0904052607151717532344842${Math.floor(10000 + Math.random() * 90000)}`;
+  const txId = transaction.reference || transaction.txId || transaction.id || `6037n6og${Math.abs(rawNum).toString().slice(0, 3)}d`;
+  const sessionId = transaction.sessionId || transaction.reference || `0904052607151717532344842${Math.floor(10000 + Math.random() * 90000)}`;
 
   // Narration / Remark
-  const remarkText = transaction.narration || `${senderName.toLowerCase()} Trf for CustomerAT126TRF2MPT8k7132077427440805801984`;
+  const remarkText = transaction.narration || transaction.description || transaction.remark || `${senderName} Trf for CustomerAT126TRF2MPT8k7132077427440805801984`;
 
   const copyToClipboard = (text: string, field: string) => {
     navigator.clipboard.writeText(text);
@@ -219,7 +219,7 @@ export default function TransactionReceipt({
 
           {/* Received from [name] */}
           <p className="text-sm font-medium text-[#2d3142] mt-3">
-            {transaction.title || (isIncoming ? `Received from ${senderName.toLowerCase()}` : `Sent to ${senderName.toLowerCase()}`)}
+            {transaction.title || (isIncoming ? `Received from ${senderName}` : `Sent to ${senderName}`)}
           </p>
 
           {/* Amount */}
@@ -243,7 +243,7 @@ export default function TransactionReceipt({
             <span className="text-[#8c92a4] font-normal">Sender</span>
             <div className="text-right max-w-[65%]">
               <p className="text-[#181b28] font-medium leading-tight">
-                {senderName.toLowerCase()}
+                {senderName}
               </p>
               <p className="text-[11px] text-[#8c92a4] mt-0.5">
                 {bankName}|{maskedAccount}

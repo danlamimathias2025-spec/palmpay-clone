@@ -11,7 +11,8 @@ import {
   LogOut,
   Moon,
   Sun,
-  UserCheck
+  UserCheck,
+  Smartphone
 } from 'lucide-react';
 import { normalizePalmPayAccountNumber } from '../../utils/account';
 import { formatNaira } from '../../utils/format';
@@ -26,6 +27,7 @@ interface MePageProps {
   };
   balance: number;
   darkMode: boolean;
+  themeMode?: 'system' | 'dark' | 'light';
   toggleDarkMode: () => void;
   onViewHistory: () => void;
   onSecurityCenter: () => void;
@@ -37,6 +39,7 @@ export default function MePage({
   userProfile,
   balance,
   darkMode,
+  themeMode = 'system',
   toggleDarkMode,
   onViewHistory,
   onSecurityCenter,
@@ -213,14 +216,28 @@ export default function MePage({
         >
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-yellow-500/15 text-yellow-300 flex items-center justify-center">
-              {darkMode ? <Sun size={20} /> : <Moon size={20} />}
+              {themeMode === 'system' ? (
+                <Smartphone size={20} className="text-sky-300" />
+              ) : darkMode ? (
+                <Sun size={20} className="text-yellow-300" />
+              ) : (
+                <Moon size={20} className="text-purple-300" />
+              )}
             </div>
             <div>
-              <p className="text-xs font-bold text-white">Interface Theme</p>
-              <p className="text-[11px] text-white/50">{darkMode ? 'Dark Mirror Glass' : 'Light Mode'}</p>
+              <p className="text-xs font-bold text-white">Interface Theme Override</p>
+              <p className="text-[11px] text-white/50">
+                {themeMode === 'system'
+                  ? 'System settings (Device Override)'
+                  : themeMode === 'dark'
+                  ? 'Dark Mirror Glass (Manual)'
+                  : 'Light Mode (Manual)'}
+              </p>
             </div>
           </div>
-          <span className="text-xs font-semibold text-purple-400">Toggle</span>
+          <span className="text-[11px] font-bold text-purple-400 uppercase tracking-tight bg-purple-500/10 px-2 py-1 rounded-md border border-purple-500/20">
+            {themeMode}
+          </span>
         </button>
       </div>
 

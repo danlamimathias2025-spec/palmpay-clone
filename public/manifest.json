@@ -4,6 +4,7 @@
   "description": "Simple, Fast, Secure Payments & Finance",
   "start_url": "/",
   "display": "standalone",
+  "orientation": "any",
   "background_color": "#0d0f17",
   "theme_color": "#6c1cf5",
   "icons": [

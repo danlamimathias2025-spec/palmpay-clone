@@ -52,7 +52,19 @@ import ClaimRewardModal from './components/modals/ClaimRewardModal';
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
   const [activeTab, setActiveTab] = useState<NavTab>('home');
-  const [darkMode, setDarkMode] = useState(true);
+  const [themeMode, setThemeMode] = useState<'system' | 'dark' | 'light'>(() => {
+    const saved = localStorage.getItem('palmpay_theme_mode');
+    return (saved as 'system' | 'dark' | 'light') || 'system';
+  });
+  const [darkMode, setDarkMode] = useState(() => {
+    const saved = localStorage.getItem('palmpay_theme_mode');
+    if (saved === 'dark') return true;
+    if (saved === 'light') return false;
+    if (typeof window !== 'undefined') {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+    return true;
+  });
   const [balance, setBalance] = useState(0.62); // Matches screenshot ₦0.62
   const [isLoggedIn, setIsLoggedIn] = useState(true);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
@@ -367,7 +379,33 @@ export default function App() {
     }
   }, [userProfile.phoneNumber]);
 
-  const toggleDarkMode = () => setDarkMode(!darkMode);
+  // Synchronize dynamic system dark/light theme setting overrides
+  useEffect(() => {
+    localStorage.setItem('palmpay_theme_mode', themeMode);
+    if (themeMode !== 'system') {
+      setDarkMode(themeMode === 'dark');
+      return;
+    }
+
+    // Follow system settings
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    setDarkMode(mediaQuery.matches);
+
+    const handleSystemThemeChange = (e: MediaQueryListEvent) => {
+      setDarkMode(e.matches);
+    };
+
+    mediaQuery.addEventListener('change', handleSystemThemeChange);
+    return () => mediaQuery.removeEventListener('change', handleSystemThemeChange);
+  }, [themeMode]);
+
+  const toggleDarkMode = () => {
+    // Cycle theme modes: system -> dark -> light -> system
+    setThemeMode((prev) => {
+      const next = prev === 'system' ? 'dark' : prev === 'dark' ? 'light' : 'system';
+      return next;
+    });
+  };
 
   const triggerManualFlashAlert = (tx: any) => {
     const isCredit = tx.type === 'credit';
@@ -556,6 +594,8 @@ export default function App() {
               <HomePage
                 balance={balance}
                 userProfile={userProfile}
+                transactions={transactions}
+                onSelectTransaction={(tx) => setSelectedTransaction(tx)}
                 onSupportClick={() => setShowSupportModal(true)}
                 onSecurityClick={() => setShowSecurityModal(true)}
                 onBellClick={() => setShowNotifications(true)}
@@ -640,6 +680,7 @@ export default function App() {
                 userProfile={userProfile}
                 balance={balance}
                 darkMode={darkMode}
+                themeMode={themeMode}
                 toggleDarkMode={toggleDarkMode}
                 onViewHistory={() => setShowHistoryView(true)}
                 onSecurityCenter={() => setShowSecurityModal(true)}

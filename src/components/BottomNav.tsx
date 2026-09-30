@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Home, Landmark, TrendingUp, Gift, Smile } from 'lucide-react';
+import { useOrientation } from '../hooks/useOrientation';
 
 export type NavTab = 'home' | 'loan' | 'wealth' | 'reward' | 'me';
 
@@ -9,35 +10,7 @@ interface BottomNavProps {
 }
 
 export default function BottomNav({ activeTab, setActiveTab }: BottomNavProps) {
-  const [isVisible, setIsVisible] = useState(true);
-  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      // Hide navigation bar when scrolling
-      setIsVisible(false);
-
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current);
-      }
-
-      // Re-appear when scrolling stops
-      scrollTimeoutRef.current = setTimeout(() => {
-        setIsVisible(true);
-      }, 240);
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    window.addEventListener('touchmove', handleScroll, { passive: true });
-
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-      window.removeEventListener('touchmove', handleScroll);
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current);
-      }
-    };
-  }, []);
+  const { isLandscape } = useOrientation();
 
   const navItems = [
     {
@@ -74,9 +47,9 @@ export default function BottomNav({ activeTab, setActiveTab }: BottomNavProps) {
 
   return (
     <div
-      className={`fixed bottom-3 inset-x-0 mx-auto w-[calc(100%-2rem)] max-w-md z-40 transition-all duration-300 ease-in-out ${
-        isVisible ? 'translate-y-0 opacity-100 pointer-events-auto' : 'translate-y-24 opacity-0 pointer-events-none'
-      }`}
+      className={`fixed bottom-3 inset-x-0 mx-auto w-[calc(100%-2rem)] z-40 transition-all duration-300 ease-in-out ${
+        isLandscape ? 'max-w-xl' : 'max-w-md'
+      } translate-y-0 opacity-100 pointer-events-auto`}
     >
       <nav className="mirror-glass-nav rounded-full px-2 py-1.5 flex items-center justify-around shadow-[0_12px_40px_rgba(0,0,0,0.6)] border border-white/15">
         {navItems.map((item) => {

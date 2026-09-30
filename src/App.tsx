@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { db, ensureFirebaseAuth } from './lib/firebase';
 import { collection, doc, query, orderBy, onSnapshot, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 
@@ -22,7 +22,15 @@ import TransactionReceipt from './components/TransactionReceipt';
 import LoginScreen from './components/LoginScreen';
 import RegistrationScreen from './components/RegistrationScreen';
 import SplashScreen from './components/SplashScreen';
+import FlashAlertOverlay from './components/FlashAlertOverlay';
 import { generatePalmPayAccountNumber, normalizePalmPayAccountNumber } from './utils/account';
+import {
+  FlashAlertData,
+  playFlashChime,
+  triggerHaptic,
+  sendOutsideAppNotification,
+  requestNotificationPermission,
+} from './utils/alerts';
 
 // Modals
 import TransferModal from './components/TransferModal';
@@ -200,6 +208,14 @@ export default function App() {
   const [showSecurityModal, setShowSecurityModal] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [claimModalData, setClaimModalData] = useState<{ title: string; bonus: number } | null>(null);
+  const [activeFlashAlert, setActiveFlashAlert] = useState<FlashAlertData | null>(null);
+
+  const isInitialLoadRef = useRef(true);
+
+  // Request Notification Permissions on Mount
+  useEffect(() => {
+    requestNotificationPermission().catch(console.warn);
+  }, []);
 
   // Firebase Auth & Firestore real-time sync
   useEffect(() => {
@@ -259,6 +275,7 @@ export default function App() {
               const liveData = snapshot.docs.map((d) => {
                 const data = d.data();
                 return {
+                  ...data,
                   id: d.id,
                   title: data.title || (data.type === 'credit' ? `Received from ${data.senderName || 'PEACE DANLAMI'}` : `Send - ${data.recipient || 'Recipient'}`),
                   recipient: data.recipient,
@@ -271,8 +288,55 @@ export default function App() {
                   month: (data.month || 'Sep') as 'Jan' | 'Feb' | 'Mar' | 'Apr' | 'May' | 'Jun' | 'Jul' | 'Aug' | 'Sep' | 'Oct' | 'Nov' | 'Dec',
                   category: data.category || 'transfer',
                   status: 'successful' as const,
+                  narration: data.narration,
+                  reference: data.reference,
+                  sessionId: data.sessionId,
+                  accountNumber: data.accountNumber,
                 };
               });
+
+              // Detect incoming new transaction after initial load to fire Flash Alert
+              if (!isInitialLoadRef.current) {
+                snapshot.docChanges().forEach((change) => {
+                  if (change.type === 'added') {
+                    const data = change.doc.data();
+                    const isCredit = data.type === 'credit';
+                    const alertData: FlashAlertData = {
+                      id: change.doc.id,
+                      type: isCredit ? 'credit' : 'debit',
+                      title: data.title || (isCredit ? 'Credit Alert Received' : 'Debit Alert'),
+                      amount: Number(data.amount) || 0,
+                      formattedAmount: data.formattedAmount || `${isCredit ? '+' : '-'}₦${Number(data.amount).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`,
+                      senderOrRecipient: isCredit ? (data.senderName || 'Site A') : (data.recipient || 'Commercial Bank'),
+                      bankName: data.senderBank || 'PalmPay',
+                      accountNumber: data.accountNumber || userProfile.accountNumber,
+                      reference: data.reference,
+                      date: data.date || 'Just now',
+                      fullTransaction: {
+                        ...data,
+                        id: change.doc.id,
+                      },
+                    };
+
+                    // Trigger In-App Flash Alert Banner
+                    setActiveFlashAlert(alertData);
+
+                    // Trigger Audio & Haptics
+                    playFlashChime(isCredit ? 'credit' : 'debit');
+                    triggerHaptic();
+
+                    // Trigger Outside-App Browser / System Push Notification
+                    sendOutsideAppNotification(alertData, () => {
+                      setSelectedTransaction({
+                        ...data,
+                        id: change.doc.id,
+                      });
+                    });
+                  }
+                });
+              }
+
+              isInitialLoadRef.current = false;
 
               setTransactions((prev) => {
                 const map = new Map<string, TransactionItem>();
@@ -301,6 +365,28 @@ export default function App() {
 
   const toggleDarkMode = () => setDarkMode(!darkMode);
 
+  const triggerManualFlashAlert = (tx: any) => {
+    const isCredit = tx.type === 'credit';
+    const alertData: FlashAlertData = {
+      id: tx.id || `alert-${Date.now()}`,
+      type: isCredit ? 'credit' : 'debit',
+      title: tx.title || (isCredit ? 'Credit Alert Received' : 'Debit Alert'),
+      amount: Number(tx.amount) || 0,
+      formattedAmount: tx.formattedAmount || `${isCredit ? '+' : '-'}₦${Number(tx.amount).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`,
+      senderOrRecipient: isCredit ? (tx.senderName || 'Sender') : (tx.recipient || 'Recipient'),
+      bankName: tx.senderBank || 'PalmPay',
+      accountNumber: tx.accountNumber || userProfile.accountNumber,
+      reference: tx.reference,
+      date: tx.date || 'Just now',
+      fullTransaction: tx,
+    };
+
+    setActiveFlashAlert(alertData);
+    playFlashChime(isCredit ? 'credit' : 'debit');
+    triggerHaptic();
+    sendOutsideAppNotification(alertData, () => setSelectedTransaction(tx));
+  };
+
   const handleAddTransaction = (newTx: any) => {
     const formattedItem: TransactionItem = {
       id: newTx.id || `tx-${Date.now()}`,
@@ -315,9 +401,14 @@ export default function App() {
       month: 'Sep',
       category: newTx.category || 'transfer',
       status: 'successful',
+      narration: newTx.narration,
+      reference: newTx.reference,
+      sessionId: newTx.sessionId,
+      accountNumber: newTx.accountNumber,
     };
 
     setTransactions((prev) => [formattedItem, ...prev]);
+    triggerManualFlashAlert(formattedItem);
   };
 
   const handleClaimPromo = () => {
@@ -558,6 +649,13 @@ export default function App() {
           </div>
         )}
 
+        {/* Flash Alert Banner for In-App and Live Incoming Credits & Debits */}
+        <FlashAlertOverlay
+          alert={activeFlashAlert}
+          onDismiss={() => setActiveFlashAlert(null)}
+          onViewReceipt={(tx) => setSelectedTransaction(tx)}
+        />
+
         {/* Floating Bottom Navigation Bar (hides on scroll, reappears when stopped) */}
         {!showHistoryView && (
           <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} />
@@ -565,7 +663,11 @@ export default function App() {
 
         {/* Modals & Overlays */}
         {showNotifications && (
-          <NotificationOverlay onClose={() => setShowNotifications(false)} />
+          <NotificationOverlay
+            onClose={() => setShowNotifications(false)}
+            transactions={transactions}
+            onSelectTransaction={(tx) => setSelectedTransaction(tx)}
+          />
         )}
 
         {selectedTransaction && (

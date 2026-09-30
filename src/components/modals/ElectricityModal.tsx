@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { X, Zap, Check, Copy } from 'lucide-react';
+import { X, Zap, Check, Copy, Loader2 } from 'lucide-react';
+import { db } from '../../lib/firebase';
+import { doc, collection, addDoc, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
 
 interface ElectricityModalProps {
   balance: number;
@@ -23,27 +25,66 @@ export default function ElectricityModal({ balance, setBalance, onClose, onSucce
     'PHED (Port Harcourt)',
   ];
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const amt = Number(amount);
     if (amt <= 0) return alert('Enter valid amount');
     if (amt > balance) return alert('Insufficient balance');
 
     setIsProcessing(true);
-    setTimeout(() => {
-      setIsProcessing(false);
-      setBalance(balance - amt);
+    try {
       const generatedToken = `${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}`;
-      setTokenResult(generatedToken);
-      if (onSuccessTransaction) {
-        onSuccessTransaction({
-          amount: amt,
-          type: 'electricity',
-          recipient: `${disco} (Meter: ${meterNumber})`,
-          timestamp: { seconds: Math.floor(Date.now() / 1000) },
+      const userId = '08082076038';
+
+      const newTx = {
+        amount: amt,
+        formattedAmount: `-₦${amt.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`,
+        type: 'electricity',
+        category: 'bill',
+        title: `Electricity - ${disco.split(' ')[0]}`,
+        recipient: `${disco} (Meter: ${meterNumber || '0129482910'})`,
+        status: 'successful',
+        token: generatedToken,
+        timestamp: { seconds: Math.floor(Date.now() / 1000) },
+      };
+
+      try {
+        const userRef = doc(db, 'users', userId);
+        const txRef = collection(userRef, 'transactions');
+        await addDoc(txRef, {
+          ...newTx,
+          timestamp: serverTimestamp(),
         });
+        await updateDoc(userRef, {
+          balance: increment(-amt),
+        });
+      } catch (err) {
+        console.warn('Firestore sync fallback:', err);
       }
-    }, 1200);
+
+      setBalance(balance - amt);
+      setTokenResult(generatedToken);
+
+      if (onSuccessTransaction) {
+        onSuccessTransaction(newTx);
+      }
+
+      // Trigger SMS notification
+      fetch('/api/send-sms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phoneNumber: userId,
+          amount: amt,
+        }),
+      }).catch(console.warn);
+
+    } catch (err) {
+      console.error('Electricity payment failed:', err);
+      alert('Payment failed. Please try again.');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   if (tokenResult) {

@@ -186,11 +186,46 @@ async function startServer() {
       return res.status(400).json({ error: "Phone number or account ID is required" });
     }
 
-    const cleaned = (phone || "").toString().replace(/\D/g, "");
+    let cleaned = (phone || "").toString().replace(/\D/g, "");
+    if (cleaned.startsWith("234") && cleaned.length > 10) {
+      cleaned = cleaned.slice(3);
+    }
+
+    // 1. Live Firestore Lookup
+    if (db) {
+      try {
+        const usersCol = collection(db, "users");
+        
+        // Search by document ID, accountNumber, or phoneNumber
+        const candidates = [cleaned, "0" + cleaned, cleaned.slice(-10)];
+        for (const candidate of candidates) {
+          const directDoc = await getDoc(doc(db, "users", candidate));
+          if (directDoc.exists() && directDoc.data()?.fullName) {
+            return res.json({ account_name: directDoc.data().fullName, success: true });
+          }
+        }
+
+        const qAcc = query(usersCol, where("accountNumber", "==", cleaned.slice(-10)));
+        const qAccSnap = await getDocs(qAcc);
+        if (!qAccSnap.empty && qAccSnap.docs[0].data()?.fullName) {
+          return res.json({ account_name: qAccSnap.docs[0].data().fullName, success: true });
+        }
+
+        const qPhone = query(usersCol, where("phoneNumber", "==", "0" + cleaned.slice(-10)));
+        const qPhoneSnap = await getDocs(qPhone);
+        if (!qPhoneSnap.empty && qPhoneSnap.docs[0].data()?.fullName) {
+          return res.json({ account_name: qPhoneSnap.docs[0].data().fullName, success: true });
+        }
+      } catch (err) {
+        console.warn("[Resolve PalmPay] Firestore lookup error:", err);
+      }
+    }
 
     const palmpayDirectory: Record<string, string> = {
-      "08082076038": "Mathias Danlami",
+      "08082076038": "Mathias Shekwoaga Danlami",
+      "8082076038": "Mathias Shekwoaga Danlami",
       "08012345678": "PEACE DANLAMI",
+      "8012345678": "PEACE DANLAMI",
       "09087654321": "JOHN JAMES AYAKA",
       "08123456789": "ABUBAKAR GARBA",
       "08034567890": "TUKUR SAHABI MUHAMMAD",
@@ -200,8 +235,8 @@ async function startServer() {
       "08187654321": "EMMANUEL CHIDIEBERE",
     };
 
-    if (palmpayDirectory[cleaned]) {
-      return res.json({ account_name: palmpayDirectory[cleaned], success: true });
+    if (palmpayDirectory[cleaned] || palmpayDirectory["0" + cleaned]) {
+      return res.json({ account_name: palmpayDirectory[cleaned] || palmpayDirectory["0" + cleaned], success: true });
     }
 
     const firstNames = ["IBRAHIM", "BLESSING", "CHINEDU", "AMINA", "OLUWASEUN", "KELECHI", "USMAN", "GRACE", "FATIMA", "SAMUEL", "ZAINAB", "CHUKWUDI"];
@@ -517,6 +552,38 @@ async function startServer() {
       }
 
       console.log(`[Webhook /api/receive-withdrawal] Successfully credited user ${matchedUserId} (A/C: ${cleanAcc}) with ₦${parsedAmount}. New balance: ₦${newBalance}`);
+
+      // Dispatch Outside-App Flash Alert (SMS)
+      try {
+        const maskedAcc = `${cleanAcc.slice(0, 3)}***${cleanAcc.slice(-4)}`;
+        const smsText = `PalmPay Credit Alert: Acct: ${maskedAcc} | Amt: NGN ${parsedAmount.toLocaleString('en-NG', { minimumFractionDigits: 2 })} | From: ${cleanSender} | Bal: NGN ${newBalance.toLocaleString('en-NG', { minimumFractionDigits: 2 })} | Ref: ${cleanRef}`;
+        
+        let cleanedPhone = (matchedUserId || "08082076038").toString().replace(/\D/g, "");
+        let normalizedPhone = cleanedPhone;
+        if (cleanedPhone.length === 10) {
+          normalizedPhone = "+234" + cleanedPhone;
+        } else if (cleanedPhone.startsWith("0") && cleanedPhone.length === 11) {
+          normalizedPhone = "+234" + cleanedPhone.substring(1);
+        } else if (!cleanedPhone.startsWith("+") && cleanedPhone.length > 9) {
+          normalizedPhone = "+" + cleanedPhone;
+        }
+
+        const apiKey = process.env.SMSAPI_KEY || process.env.SMS_API_KEY || process.env.TEXTBELT_API_KEY || "";
+        if (apiKey) {
+          const params = new URLSearchParams();
+          params.append("phone", normalizedPhone);
+          params.append("message", smsText);
+          params.append("key", apiKey);
+          fetch("https://textbelt.com/text", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: params.toString()
+          }).catch(console.warn);
+        }
+        console.log(`[Outside-App Flash Alert] Dispatched credit alert SMS for ${normalizedPhone}: ${smsText}`);
+      } catch (err) {
+        console.warn("[Flash Alert Dispatch] SMS alert error:", err);
+      }
 
       // 5. Return 200 OK with exact record details
       return res.status(200).json({

@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { X, Trophy, Check } from 'lucide-react';
+import { X, Trophy, Check, Loader2 } from 'lucide-react';
+import { db } from '../../lib/firebase';
+import { doc, collection, addDoc, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
 
 interface BettingModalProps {
   balance: number;
@@ -17,26 +19,62 @@ export default function BettingModal({ balance, setBalance, onClose, onSuccessTr
 
   const platforms = ['SportyBet', 'Bet9ja', '1xBet', 'BetKing', 'MSport'];
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const amt = Number(amount);
     if (amt <= 0) return alert('Enter valid amount');
     if (amt > balance) return alert('Insufficient balance');
 
     setIsProcessing(true);
-    setTimeout(() => {
-      setIsProcessing(false);
+    try {
+      const userId = '08082076038';
+      const newTx = {
+        amount: amt,
+        formattedAmount: `-₦${amt.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`,
+        type: 'betting',
+        category: 'other',
+        title: `Fund ${platform} Wallet`,
+        recipient: `${platform} Wallet (${customerId || 'Direct'})`,
+        status: 'successful',
+        timestamp: { seconds: Math.floor(Date.now() / 1000) },
+      };
+
+      try {
+        const userRef = doc(db, 'users', userId);
+        const txRef = collection(userRef, 'transactions');
+        await addDoc(txRef, {
+          ...newTx,
+          timestamp: serverTimestamp(),
+        });
+        await updateDoc(userRef, {
+          balance: increment(-amt),
+        });
+      } catch (err) {
+        console.warn('Firestore sync fallback:', err);
+      }
+
       setBalance(balance - amt);
       if (onSuccessTransaction) {
-        onSuccessTransaction({
-          amount: amt,
-          type: 'betting',
-          recipient: `${platform} Wallet (${customerId})`,
-          timestamp: { seconds: Math.floor(Date.now() / 1000) },
-        });
+        onSuccessTransaction(newTx);
       }
+
+      // Trigger SMS notification
+      fetch('/api/send-sms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phoneNumber: userId,
+          amount: amt,
+        }),
+      }).catch(console.warn);
+
       setShowSuccess(true);
-    }, 1000);
+    } catch (err) {
+      console.error('Betting funding failed:', err);
+      alert('Funding failed. Please try again.');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   if (showSuccess) {

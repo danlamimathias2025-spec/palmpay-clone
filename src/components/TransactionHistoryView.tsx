@@ -19,12 +19,17 @@ export interface TransactionItem {
   senderBank?: string;
   amount: number | string;
   formattedAmount: string;
-  type: 'credit' | 'transfer' | 'interest' | 'autosave' | 'airtime' | 'electricity';
+  type: 'credit' | 'transfer' | 'interest' | 'autosave' | 'airtime' | 'electricity' | 'betting' | 'bill';
   date: string;
   month: 'Jan' | 'Feb' | 'Mar' | 'Apr' | 'May' | 'Jun' | 'Jul' | 'Aug' | 'Sep' | 'Oct' | 'Nov' | 'Dec';
-  category: 'transfer' | 'airtime' | 'electricity' | 'cashbox' | 'other';
+  category: 'transfer' | 'airtime' | 'electricity' | 'cashbox' | 'bill' | 'other';
   status: 'successful' | 'pending' | 'failed';
   rawTimestamp?: number;
+  narration?: string;
+  reference?: string;
+  sessionId?: string;
+  accountNumber?: string;
+  [key: string]: any;
 }
 
 interface TransactionHistoryViewProps {

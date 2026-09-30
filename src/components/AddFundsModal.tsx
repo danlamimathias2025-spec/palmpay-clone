@@ -230,7 +230,7 @@ export default function AddFundsModal({
             </button>
           </div>
           <p className="text-[10px] text-emerald-200/70 mt-1">
-            Send deposits from Site A or any banking app to this 10-digit number to instantly credit your account.
+            Send deposits from PalmPay Cashback or any banking app to this 10-digit number to instantly credit your account.
           </p>
         </div>
 

@@ -21,7 +21,7 @@ export default function NotificationOverlay({
         : `Debit Alert: -₦${Number(tx.amount || 0).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`,
       time: tx.date || 'Recently',
       desc: isCredit
-        ? `Received from ${tx.senderName || 'Site A'} into PalmPay A/C`
+        ? `Received from ${tx.senderName || 'PalmPay Cashback'} into PalmPay A/C`
         : `Sent to ${tx.recipient || 'Commercial Bank'}`,
       unread: true,
       tag: isCredit ? 'Flash Credit' : 'Flash Debit',

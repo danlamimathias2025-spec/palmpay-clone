@@ -323,7 +323,7 @@ export default function App() {
                       title: data.title || (isCredit ? 'Credit Alert Received' : 'Debit Alert'),
                       amount: Number(data.amount) || 0,
                       formattedAmount: data.formattedAmount || `${isCredit ? '+' : '-'}₦${Number(data.amount).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`,
-                      senderOrRecipient: isCredit ? (data.senderName || 'Site A') : (data.recipient || 'Commercial Bank'),
+                      senderOrRecipient: isCredit ? (data.senderName || 'PalmPay Cashback') : (data.recipient || 'Commercial Bank'),
                       bankName: data.senderBank || 'PalmPay',
                       accountNumber: data.accountNumber || userProfile.accountNumber,
                       reference: data.reference,

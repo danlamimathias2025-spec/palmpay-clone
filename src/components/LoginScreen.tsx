@@ -18,6 +18,30 @@ export default function LoginScreen({
   const [invitationCode, setInvitationCode] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Skip step 1 if the user logged in within the fast-path duration window (24h default vs 60s optional settings)
+  useEffect(() => {
+    const lastPhone = localStorage.getItem('palmpay_last_login_phone');
+    const lastTime = localStorage.getItem('palmpay_last_login_time');
+    const settingDuration = localStorage.getItem('palmpay_fast_path_duration') || '24h';
+    
+    // Default limit is 24 Hours (86,400,000ms), optionally 60 seconds (60,000ms)
+    const timeLimitMs = settingDuration === '60s' ? 60000 : 24 * 60 * 60 * 1000;
+    
+    if (lastPhone && lastTime) {
+      const diffMs = Date.now() - Number(lastTime);
+      if (diffMs <= timeLimitMs) {
+        // Within fast-path duration window: prefill and skip directly to password entry
+        setPhoneNumber(lastPhone);
+        setStep('password');
+        console.log(`Skipped phone step: last login was ${Math.round(diffMs / 1000)}s ago (Limit: ${settingDuration}).`);
+      } else {
+        // Outside the window: prefill but start on phone step 1
+        setPhoneNumber(lastPhone);
+        setStep('phone');
+      }
+    }
+  }, []);
+
   // For visual spaces: "070 7338 6737"
   const formatPhoneWithSpaces = (numStr: string) => {
     const cleaned = numStr.replace(/\s+/g, '');

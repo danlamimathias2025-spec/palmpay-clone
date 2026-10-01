@@ -136,15 +136,30 @@ export default function AccountPage({ userProfile, setUserProfile, onLogout }: {
                 <span className='font-bold text-gray-800 dark:text-white'>Unlimited</span>
             </div>
         </div>
-        <div className="bg-white dark:bg-gray-900 p-4 rounded-xl space-y-4 border border-gray-100 dark:border-gray-800">
+        <div className="bg-white dark:bg-gray-900 p-4 rounded-xl space-y-4 border border-gray-100 dark:border-gray-800 text-left">
              <h4 className="font-semibold text-gray-900 dark:text-white">Security Settings</h4>
-             <div className='flex justify-between items-center'>
+             <div className='flex justify-between items-center text-sm text-gray-600 dark:text-gray-300'>
                  <span>Change PIN</span>
-                 <input type="password" name="pin" value={localProfile.pin} onChange={handleInputChange} placeholder="New PIN" className="text-right bg-transparent text-gray-900 dark:text-white font-bold w-24" />
+                 <input type="password" name="pin" value={localProfile.pin} onChange={handleInputChange} placeholder="New PIN" className="text-right bg-transparent text-gray-900 dark:text-white font-bold w-24 focus:outline-none" />
              </div>
-             <div className='flex justify-between items-center'>
+             <div className='flex justify-between items-center text-sm text-gray-600 dark:text-gray-300'>
                  <span>Change Password</span>
-                 <input type="password" name="password" value={localProfile.password} onChange={handleInputChange} placeholder="New Password" className="text-right bg-transparent text-gray-900 dark:text-white font-bold w-32" />
+                 <input type="password" name="password" value={localProfile.password} onChange={handleInputChange} placeholder="New Password" className="text-right bg-transparent text-gray-900 dark:text-white font-bold w-32 focus:outline-none" />
+             </div>
+             <div className='flex justify-between items-center text-sm text-gray-600 dark:text-gray-300'>
+                 <span>Fast-Path Login Skip</span>
+                 <select
+                   value={localStorage.getItem('palmpay_fast_path_duration') || '24h'}
+                   onChange={(e) => {
+                     localStorage.setItem('palmpay_fast_path_duration', e.target.value);
+                     alert(`Fast-Path Login Skip set to: ${e.target.value === '24h' ? '24 Hours (Default)' : '60 Seconds'}`);
+                     window.location.reload();
+                   }}
+                   className="bg-transparent text-gray-900 dark:text-white font-bold text-xs focus:outline-none border-none text-right cursor-pointer"
+                 >
+                     <option value="24h" className="bg-[#12131a]">24 Hours (Default)</option>
+                     <option value="60s" className="bg-[#12131a]">60 Seconds</option>
+                 </select>
              </div>
         </div>
         <div className="bg-white dark:bg-gray-900 p-4 rounded-xl flex items-center justify-between border border-gray-100 dark:border-gray-800">

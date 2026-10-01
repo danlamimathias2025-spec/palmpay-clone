@@ -66,7 +66,7 @@ export default function App() {
     return true;
   });
   const [balance, setBalance] = useState(0.62); // Matches screenshot ₦0.62
-  const [isLoggedIn, setIsLoggedIn] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [showHistoryView, setShowHistoryView] = useState(false);
 
@@ -527,7 +527,7 @@ export default function App() {
     if (authMode === 'login') {
       return (
         <LoginScreen
-          onLogin={async (phone) => {
+          onLogin={async (phone, password) => {
             await ensureFirebaseAuth();
             const acc = generatePalmPayAccountNumber(phone);
             try {
@@ -535,6 +535,13 @@ export default function App() {
               const snap = await getDoc(userRef);
               if (snap.exists()) {
                 const data = snap.data();
+                // Validate registered 6-digit password
+                const registeredPassword = data.password || '123456';
+                if (registeredPassword !== password) {
+                  alert('Incorrect 6-digit password. Please try again.');
+                  return;
+                }
+
                 setUserProfile((prev) => ({
                   ...prev,
                   ...data,
@@ -545,6 +552,12 @@ export default function App() {
                   setBalance(data.balance);
                 }
               } else {
+                // If it is a fresh simulation, let's auto-create on first login with default pass 123456
+                if (password !== '123456') {
+                  alert('This number is not registered. Please tap the back arrow to Open an Account (Sign Up).');
+                  return;
+                }
+
                 await setDoc(
                   userRef,
                   {
@@ -554,6 +567,7 @@ export default function App() {
                     accountNumber: acc,
                     balance: 0.62,
                     pin: '1234',
+                    password: '123456',
                     createdAt: serverTimestamp(),
                   },
                   { merge: true }
@@ -572,6 +586,9 @@ export default function App() {
                 accountNumber: acc,
               }));
             }
+            // Save last login phone & timestamp to allow password-only login within 60 seconds
+            localStorage.setItem('palmpay_last_login_phone', phone);
+            localStorage.setItem('palmpay_last_login_time', Date.now().toString());
             setIsLoggedIn(true);
           }}
           onSwitchToRegister={() => setAuthMode('register')}
@@ -601,6 +618,9 @@ export default function App() {
               accountNumber: acc,
               userName: data.fullName?.split(' ')[0] || data.userName || 'Mathias',
             }));
+            // Save last login phone & timestamp to allow password-only login within 60 seconds
+            localStorage.setItem('palmpay_last_login_phone', data.phoneNumber);
+            localStorage.setItem('palmpay_last_login_time', Date.now().toString());
             setIsLoggedIn(true);
           }}
           onSwitchToLogin={() => setAuthMode('login')}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Bell, Sparkles, ArrowDownLeft, ShieldCheck } from 'lucide-react';
+import { X, Bell, Sparkles, ShieldCheck } from 'lucide-react';
 
 interface NotificationOverlayProps {
   onClose: () => void;
@@ -12,7 +12,7 @@ export default function NotificationOverlay({
   transactions = [],
   onSelectTransaction,
 }: NotificationOverlayProps) {
-  const liveRecentAlerts = transactions.slice(0, 5).map((tx) => {
+  const liveRecentAlerts = transactions.slice(0, 10).map((tx) => {
     const isCredit = tx.type === 'credit';
     return {
       id: tx.id || Math.random().toString(),
@@ -29,26 +29,7 @@ export default function NotificationOverlay({
     };
   });
 
-  const baseNotifications = [
-    {
-      id: 'promo-1',
-      title: '₦50 Extra Cashback Claim Available',
-      time: '10 mins ago',
-      desc: 'Fund ₦450 to unlock your ₦50 bonus reward today.',
-      unread: false,
-      tag: 'Bonus',
-    },
-    {
-      id: 'interest-1',
-      title: 'Daily Interest Credited',
-      time: 'Today 00:00',
-      desc: '₦14.20 interest accrued from your PalmPay CashBox savings.',
-      unread: false,
-      tag: 'Interest',
-    },
-  ];
-
-  const allAlerts = [...liveRecentAlerts, ...baseNotifications];
+  const allAlerts = liveRecentAlerts;
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center p-4 bg-black/80 backdrop-blur-md">
@@ -66,46 +47,58 @@ export default function NotificationOverlay({
           </div>
           <div>
             <h2 className="text-base font-bold text-white font-script">Notifications & Alerts</h2>
-            <p className="text-[10px] text-white/50">{allAlerts.length} updates & flash alerts</p>
+            <p className="text-[10px] text-white/50">
+              {allAlerts.length > 0 ? `${allAlerts.length} transaction updates` : '0 new alerts'}
+            </p>
           </div>
         </div>
 
         <div className="flex-1 overflow-y-auto space-y-2.5 pr-1">
-          {allAlerts.map((n: any) => (
-            <div
-              key={n.id}
-              onClick={() => {
-                if (n.rawTx && onSelectTransaction) {
-                  onSelectTransaction(n.rawTx);
-                  onClose();
-                }
-              }}
-              className={`p-3 rounded-2xl border transition-all ${
-                n.rawTx ? 'cursor-pointer hover:scale-[1.01] active:scale-[0.99]' : ''
-              } ${
-                n.unread
-                  ? 'bg-purple-600/20 border-purple-500/40 shadow-sm'
-                  : 'mirror-glass border-white/5'
-              }`}
-            >
-              <div className="flex justify-between items-center mb-1">
-                <span
-                  className={`text-[10px] font-bold uppercase tracking-wider ${
-                    n.tag.includes('Credit')
-                      ? 'text-emerald-400'
-                      : n.tag.includes('Debit')
-                      ? 'text-rose-400'
-                      : 'text-purple-300'
-                  }`}
-                >
-                  {n.tag}
-                </span>
-                <span className="text-[10px] text-white/40">{n.time}</span>
+          {allAlerts.length > 0 ? (
+            allAlerts.map((n: any) => (
+              <div
+                key={n.id}
+                onClick={() => {
+                  if (n.rawTx && onSelectTransaction) {
+                    onSelectTransaction(n.rawTx);
+                    onClose();
+                  }
+                }}
+                className={`p-3 rounded-2xl border transition-all cursor-pointer hover:scale-[1.01] active:scale-[0.99] ${
+                  n.unread
+                    ? 'bg-purple-600/20 border-purple-500/40 shadow-sm'
+                    : 'mirror-glass border-white/5'
+                }`}
+              >
+                <div className="flex justify-between items-center mb-1">
+                  <span
+                    className={`text-[10px] font-bold uppercase tracking-wider ${
+                      n.tag.includes('Credit')
+                        ? 'text-emerald-400'
+                        : n.tag.includes('Debit')
+                        ? 'text-rose-400'
+                        : 'text-purple-300'
+                    }`}
+                  >
+                    {n.tag}
+                  </span>
+                  <span className="text-[10px] text-white/40">{n.time}</span>
+                </div>
+                <h4 className="text-xs font-bold text-white mb-0.5">{n.title}</h4>
+                <p className="text-[11px] text-white/60 leading-snug">{n.desc}</p>
               </div>
-              <h4 className="text-xs font-bold text-white mb-0.5">{n.title}</h4>
-              <p className="text-[11px] text-white/60 leading-snug">{n.desc}</p>
+            ))
+          ) : (
+            <div className="py-12 text-center flex flex-col items-center justify-center">
+              <div className="w-12 h-12 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center mb-2.5">
+                <Bell size={22} />
+              </div>
+              <h4 className="text-sm font-bold text-white mb-1">No New Notifications</h4>
+              <p className="text-[11px] text-white/50 max-w-xs leading-relaxed">
+                Incoming transaction flash alerts, transfers, and system updates will appear here in real time.
+              </p>
             </div>
-          ))}
+          )}
         </div>
       </div>
     </div>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   ArrowLeft,
   ArrowUpFromLine,
@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   PieChart,
   X,
+  History,
 } from 'lucide-react';
 import NetworkLogo, { detectTelecomNetwork } from './NetworkLogo';
 
@@ -22,7 +23,7 @@ export interface TransactionItem {
   formattedAmount: string;
   type: 'credit' | 'transfer' | 'interest' | 'autosave' | 'airtime' | 'data' | 'electricity' | 'betting' | 'bill';
   date: string;
-  month: 'Jan' | 'Feb' | 'Mar' | 'Apr' | 'May' | 'Jun' | 'Jul' | 'Aug' | 'Sep' | 'Oct' | 'Nov' | 'Dec';
+  month?: 'Jan' | 'Feb' | 'Mar' | 'Apr' | 'May' | 'Jun' | 'Jul' | 'Aug' | 'Sep' | 'Oct' | 'Nov' | 'Dec' | string;
   category: 'transfer' | 'airtime' | 'electricity' | 'cashbox' | 'bill' | 'other';
   status: 'successful' | 'pending' | 'failed';
   rawTimestamp?: number;
@@ -41,19 +42,19 @@ interface TransactionHistoryViewProps {
 
 export default function TransactionHistoryView({
   onBack,
-  transactions,
+  transactions = [],
   onSelectTransaction,
 }: TransactionHistoryViewProps) {
   const [selectedCategory, setSelectedCategory] = useState<string>('All Categories');
   const [selectedStatus, setSelectedStatus] = useState<string>('All Status');
   const [showCategoryMenu, setShowCategoryMenu] = useState(false);
   const [showStatusMenu, setShowStatusMenu] = useState(false);
-  const [showMonthlyOverview, setShowMonthlyOverview] = useState(false);
+  const [selectedMonthOverview, setSelectedMonthOverview] = useState<string | null>(null);
   const [downloadSuccess, setDownloadSuccess] = useState(false);
 
   // Filter transactions based on category & status
-  const filterTransactions = (txList: TransactionItem[]) => {
-    return txList.filter((tx) => {
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter((tx) => {
       // Category filter
       if (selectedCategory !== 'All Categories') {
         if (selectedCategory === 'Transfers' && tx.category !== 'transfer') return false;
@@ -68,42 +69,54 @@ export default function TransactionHistoryView({
       }
       return true;
     });
-  };
+  }, [transactions, selectedCategory, selectedStatus]);
 
-  const sepList = filterTransactions(transactions.filter((t) => t.month === 'Sep'));
-  const augList = filterTransactions(transactions.filter((t) => t.month === 'Aug'));
-  const julList = filterTransactions(transactions.filter((t) => t.month === 'Jul'));
+  // Dynamically group transactions by month
+  const monthlyGroups = useMemo(() => {
+    const groups: { [monthKey: string]: { monthName: string; list: TransactionItem[]; inTotal: number; outTotal: number } } = {};
 
-  // Calculate In and Out totals for Sep
-  const calculateTotals = (list: TransactionItem[]) => {
-    let inTotal = 0;
-    let outTotal = 0;
+    filteredTransactions.forEach((tx) => {
+      // Extract month name from tx.month or tx.date
+      let mName = (tx.month as string) || 'Recent';
+      if (!tx.month && tx.date) {
+        const parts = tx.date.split(' ');
+        if (parts.length > 0 && parts[0].length >= 3) {
+          mName = parts[0].slice(0, 3);
+        }
+      }
 
-    list.forEach((t) => {
-      const num = typeof t.amount === 'number' ? Math.abs(t.amount) : parseFloat(t.amount.replace(/[^0-9.]/g, '')) || 0;
-      if (t.type === 'credit' || t.type === 'interest') {
-        inTotal += num;
+      if (!groups[mName]) {
+        groups[mName] = { monthName: mName, list: [], inTotal: 0, outTotal: 0 };
+      }
+
+      groups[mName].list.push(tx);
+
+      const num = typeof tx.amount === 'number'
+        ? Math.abs(tx.amount)
+        : parseFloat(String(tx.amount).replace(/[^0-9.]/g, '')) || 0;
+
+      if (tx.type === 'credit' || tx.type === 'interest') {
+        groups[mName].inTotal += num;
       } else {
-        outTotal += num;
+        groups[mName].outTotal += num;
       }
     });
 
-    return {
-      inTotal: inTotal.toLocaleString('en-NG', { minimumFractionDigits: 2 }),
-      outTotal: outTotal.toLocaleString('en-NG', { minimumFractionDigits: 2 }),
-    };
-  };
-
-  const sepTotals = calculateTotals(transactions.filter((t) => t.month === 'Sep'));
-  const augTotals = { inTotal: '0.00', outTotal: '0.00' };
-  const julTotals = { inTotal: '46,825.07', outTotal: '51,051.00' };
+    return Object.values(groups);
+  }, [filteredTransactions]);
 
   const handleDownloadStatement = () => {
+    if (transactions.length === 0) {
+      alert("No transaction records available to download.");
+      return;
+    }
     setDownloadSuccess(true);
     setTimeout(() => {
       setDownloadSuccess(false);
-      const headers = "Date,Title,Type,Amount\n";
-      const rows = transactions.map(t => `"${t.date}","${t.title}","${t.type}","${t.formattedAmount}"`).join("\n");
+      const headers = "Date,Title,Type,Amount,Status,Reference\n";
+      const rows = transactions
+        .map((t) => `"${t.date}","${t.title}","${t.type}","${t.formattedAmount}","${t.status}","${t.reference || t.id}"`)
+        .join("\n");
       const blob = new Blob([headers + rows], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -112,13 +125,11 @@ export default function TransactionHistoryView({
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-    }, 1200);
+    }, 1000);
   };
 
-  // Render original icon sizes and styles matching Screenshot_20260930-021928_PalmPay.jpg
   const renderIcon = (tx: TransactionItem) => {
     if (tx.type === 'credit') {
-      // Blue circle with white down-arrow into tray
       return (
         <div className="w-9 h-9 rounded-full bg-[#2563eb] text-white flex items-center justify-center shrink-0 shadow-sm">
           <ArrowDownToLine size={19} strokeWidth={2.2} />
@@ -126,7 +137,6 @@ export default function TransactionHistoryView({
       );
     }
     if (tx.type === 'transfer') {
-      // Purple circle with white up-arrow from tray
       return (
         <div className="w-9 h-9 rounded-full bg-[#6d28d9] text-white flex items-center justify-center shrink-0 shadow-sm">
           <ArrowUpFromLine size={19} strokeWidth={2.2} />
@@ -134,7 +144,6 @@ export default function TransactionHistoryView({
       );
     }
     if (tx.type === 'interest' || tx.type === 'autosave') {
-      // Magenta/purple circle with wallet / CashBox icon
       return (
         <div className="w-9 h-9 rounded-full bg-[#7c3aed] text-white flex items-center justify-center shrink-0 shadow-sm">
           <Coins size={18} strokeWidth={2.2} />
@@ -146,7 +155,6 @@ export default function TransactionHistoryView({
       return <NetworkLogo network={net} size="sm" />;
     }
     if (tx.type === 'electricity') {
-      // White round AEDC badge
       return (
         <div className="w-9 h-9 rounded-full bg-white text-[#0f2922] flex items-center justify-center shrink-0 font-black text-[8px] shadow-sm border border-gray-200">
           <span className="text-[#059669]">AEDC</span>
@@ -159,6 +167,11 @@ export default function TransactionHistoryView({
       </div>
     );
   };
+
+  const activeOverviewData = useMemo(() => {
+    if (!selectedMonthOverview) return null;
+    return monthlyGroups.find((g) => g.monthName === selectedMonthOverview) || null;
+  }, [selectedMonthOverview, monthlyGroups]);
 
   return (
     <div className="flex flex-col min-h-screen bg-[#0d0f17] text-white max-w-md mx-auto relative pb-28">
@@ -192,7 +205,7 @@ export default function TransactionHistoryView({
         </div>
       )}
 
-      {/* 2. Top Promotional Banner with original images */}
+      {/* 2. Top Promotional Banner */}
       <div className="px-4 mb-3">
         <div className="relative rounded-2xl overflow-hidden p-3.5 bg-gradient-to-r from-[#391d8a] via-[#4d22ad] to-[#6d28d9] border border-purple-500/30 shadow-lg flex items-center justify-between min-h-[92px]">
           <div className="max-w-[62%] z-10">
@@ -203,14 +216,13 @@ export default function TransactionHistoryView({
               Lower Fees, Bigger Loans!
             </h2>
             <button
-              onClick={() => alert("Business Hub & Loan Portal opened!")}
+              onClick={() => alert("Business Hub & Loan Portal active")}
               className="mt-1.5 py-1 px-4 rounded-full bg-[#fbbf24] hover:bg-[#f59e0b] text-[#1c1917] font-bold text-xs shadow-md active:scale-95 transition-all"
             >
               Go Now
             </button>
           </div>
 
-          {/* Right illustration photo */}
           <div className="relative z-10 w-28 h-20 flex items-center justify-center pointer-events-none">
             <img
               src="/src/assets/images/business_loan_promo_1790734668144.jpg"
@@ -293,165 +305,81 @@ export default function TransactionHistoryView({
         </div>
       </div>
 
-      {/* 4. Transaction Lists Grouped by Month */}
+      {/* 4. Transaction Lists Grouped Dynamically */}
       <div className="flex-1 px-4 pt-3 space-y-4">
-        {/* --- SEPTEMBER SECTION --- */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-1 cursor-pointer">
-                <h2 className="text-xl font-bold text-white">Sep</h2>
-                <ChevronDown size={18} className="text-white/70" />
-              </div>
-              <p className="text-[11px] text-white/50 tracking-normal mt-0.5">
-                In <span className="text-white/80">₦{sepTotals.inTotal}</span>{' '}
-                Out <span className="text-white/80">₦{sepTotals.outTotal}</span>
-              </p>
-            </div>
+        {monthlyGroups.length > 0 ? (
+          monthlyGroups.map((group) => (
+            <div key={group.monthName} className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-1 cursor-pointer">
+                    <h2 className="text-xl font-bold text-white">{group.monthName}</h2>
+                    <ChevronDown size={18} className="text-white/70" />
+                  </div>
+                  <p className="text-[11px] text-white/50 tracking-normal mt-0.5">
+                    In <span className="text-white/80">₦{group.inTotal.toLocaleString('en-NG', { minimumFractionDigits: 2 })}</span>{' '}
+                    Out <span className="text-white/80">₦{group.outTotal.toLocaleString('en-NG', { minimumFractionDigits: 2 })}</span>
+                  </p>
+                </div>
 
-            {/* Monthly Overview Pill */}
-            <button
-              onClick={() => setShowMonthlyOverview(true)}
-              className="py-1 px-3 rounded-full bg-[#2a2254] hover:bg-[#342a66] border border-purple-500/30 text-purple-300 text-xs flex items-center gap-1.5 active:scale-95 transition-all shadow-sm"
-            >
-              <Coins size={13} className="text-purple-300" />
-              <span>Monthly Overview</span>
-            </button>
-          </div>
-
-          {/* Sep Transactions */}
-          {sepList.length > 0 ? (
-            <div className="divide-y divide-white/[0.06]">
-              {sepList.map((tx) => (
-                <div
-                  key={tx.id}
-                  onClick={() => onSelectTransaction(tx)}
-                  className="py-2.5 flex items-center justify-between cursor-pointer hover:bg-white/[0.03] rounded-xl px-1 -mx-1 active:scale-[0.99] transition-all group"
+                <button
+                  onClick={() => setSelectedMonthOverview(group.monthName)}
+                  className="py-1 px-3 rounded-full bg-[#2a2254] hover:bg-[#342a66] border border-purple-500/30 text-purple-300 text-xs flex items-center gap-1.5 active:scale-95 transition-all shadow-sm"
                 >
-                  <div className="flex items-center gap-3 min-w-0 pr-2">
-                    {renderIcon(tx)}
-                    <div className="min-w-0">
-                      <p className="text-[13px] font-normal text-white truncate tracking-normal group-hover:text-purple-300 transition-colors">
-                        {tx.title}
-                      </p>
-                      <p className="text-[10px] text-white/50 mt-0.5">
-                        {tx.date}
-                      </p>
+                  <Coins size={13} className="text-purple-300" />
+                  <span>Monthly Overview</span>
+                </button>
+              </div>
+
+              <div className="divide-y divide-white/[0.06]">
+                {group.list.map((tx) => (
+                  <div
+                    key={tx.id}
+                    onClick={() => onSelectTransaction(tx)}
+                    className="py-2.5 flex items-center justify-between cursor-pointer hover:bg-white/[0.03] rounded-xl px-1 -mx-1 active:scale-[0.99] transition-all group"
+                  >
+                    <div className="flex items-center gap-3 min-w-0 pr-2">
+                      {renderIcon(tx)}
+                      <div className="min-w-0">
+                        <p className="text-[13px] font-normal text-white truncate tracking-normal group-hover:text-purple-300 transition-colors">
+                          {tx.title}
+                        </p>
+                        <p className="text-[10px] text-white/50 mt-0.5">
+                          {tx.date}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="text-right shrink-0">
+                      <span className="text-sm font-normal text-white">
+                        {tx.formattedAmount}
+                      </span>
                     </div>
                   </div>
-
-                  <div className="text-right shrink-0">
-                    <span className="text-sm font-normal text-white">
-                      {tx.formattedAmount}
-                    </span>
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          ) : (
-            <p className="text-[11px] text-white/40 italic py-1">
-              No transactions in September matching filters.
+          ))
+        ) : (
+          /* Clean Zero-Data Empty State */
+          <div className="py-16 text-center flex flex-col items-center justify-center">
+            <div className="w-16 h-16 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center mb-3">
+              <History size={32} strokeWidth={1.5} />
+            </div>
+            <h3 className="text-base font-bold text-white mb-1">No Transactions Yet</h3>
+            <p className="text-xs text-white/50 max-w-xs leading-relaxed">
+              Your incoming credits, deposits, and transfer activities will appear here in real time.
             </p>
-          )}
-        </div>
-
-        {/* --- AUGUST SECTION --- */}
-        <div className="space-y-2 pt-1">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-1 cursor-pointer">
-                <h2 className="text-base font-bold text-white">Aug</h2>
-                <ChevronDown size={15} className="text-white/70" />
-              </div>
-              <p className="text-[10px] text-white/50 tracking-normal mt-0.5">
-                In <span className="text-white/80">₦{augTotals.inTotal}</span>{' '}
-                Out <span className="text-white/80">₦{augTotals.outTotal}</span>
-              </p>
-            </div>
           </div>
-
-          {/* Aug Items: Top up Airtime */}
-          <div className="divide-y divide-white/[0.06]">
-            {augList.map((tx) => (
-              <div
-                key={tx.id}
-                onClick={() => onSelectTransaction(tx)}
-                className="py-2.5 flex items-center justify-between cursor-pointer hover:bg-white/[0.03] rounded-xl px-1 -mx-1 active:scale-[0.99] transition-all group"
-              >
-                <div className="flex items-center gap-3 min-w-0 pr-2">
-                  {renderIcon(tx)}
-                  <div className="min-w-0">
-                    <p className="text-[13px] font-normal text-white truncate tracking-normal group-hover:text-purple-300 transition-colors">
-                      {tx.title}
-                    </p>
-                    <p className="text-[10px] text-white/50 mt-0.5">
-                      {tx.date}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="text-right shrink-0">
-                  <span className="text-sm font-normal text-white">
-                    {tx.formattedAmount}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* --- JULY SECTION (Exact matches from the user's screenshot!) --- */}
-        <div className="space-y-2 pt-1">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-1 cursor-pointer">
-                <h2 className="text-base font-bold text-white">Jul</h2>
-                <ChevronDown size={15} className="text-white/70" />
-              </div>
-              <p className="text-[10px] text-white/50 tracking-normal mt-0.5">
-                In <span className="text-white/80">₦{julTotals.inTotal}</span>{' '}
-                Out <span className="text-white/80">₦{julTotals.outTotal}</span>
-              </p>
-            </div>
-          </div>
-
-          {/* Jul Items matching Screenshot_20260930-021928_PalmPay.jpg */}
-          <div className="divide-y divide-white/[0.06]">
-            {julList.map((tx) => (
-              <div
-                key={tx.id}
-                onClick={() => onSelectTransaction(tx)}
-                className="py-2.5 flex items-center justify-between cursor-pointer hover:bg-white/[0.03] rounded-xl px-1 -mx-1 active:scale-[0.99] transition-all group"
-              >
-                <div className="flex items-center gap-3 min-w-0 pr-2">
-                  {renderIcon(tx)}
-                  <div className="min-w-0">
-                    <p className="text-[13px] font-normal text-white truncate tracking-normal group-hover:text-purple-300 transition-colors">
-                      {tx.title}
-                    </p>
-                    <p className="text-[10px] text-white/50 mt-0.5">
-                      {tx.date}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="text-right shrink-0">
-                  <span className="text-sm font-normal text-white">
-                    {tx.formattedAmount}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Monthly Overview Modal */}
-      {showMonthlyOverview && (
+      {activeOverviewData && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
           <div className="mirror-glass-modal rounded-3xl p-6 w-full max-w-sm relative">
             <button
-              onClick={() => setShowMonthlyOverview(false)}
+              onClick={() => setSelectedMonthOverview(null)}
               className="absolute top-4 right-4 w-8 h-8 rounded-full mirror-glass flex items-center justify-center text-white/70 hover:text-white"
             >
               <X size={18} />
@@ -463,7 +391,7 @@ export default function TransactionHistoryView({
               </div>
               <div>
                 <h3 className="text-base font-bold text-white">
-                  Monthly Overview (Sep)
+                  Monthly Overview ({activeOverviewData.monthName})
                 </h3>
                 <p className="text-[11px] text-white/60">Spending vs Inflow Breakdown</p>
               </div>
@@ -473,20 +401,20 @@ export default function TransactionHistoryView({
               <div className="p-3.5 mirror-glass rounded-2xl border border-white/5 flex justify-between items-center">
                 <span className="text-xs text-white/70">Total Inflow</span>
                 <span className="text-sm font-bold text-emerald-400 font-sans">
-                  +₦{sepTotals.inTotal}
+                  +₦{activeOverviewData.inTotal.toLocaleString('en-NG', { minimumFractionDigits: 2 })}
                 </span>
               </div>
 
               <div className="p-3.5 mirror-glass rounded-2xl border border-white/5 flex justify-between items-center">
                 <span className="text-xs text-white/70">Total Outflow</span>
                 <span className="text-sm font-bold text-rose-400 font-sans">
-                  -₦{sepTotals.outTotal}
+                  -₦{activeOverviewData.outTotal.toLocaleString('en-NG', { minimumFractionDigits: 2 })}
                 </span>
               </div>
             </div>
 
             <button
-              onClick={() => setShowMonthlyOverview(false)}
+              onClick={() => setSelectedMonthOverview(null)}
               className="w-full py-2.5 rounded-xl bg-[#7846f7] hover:bg-[#6836ea] text-white text-xs font-semibold shadow-md"
             >
               Close

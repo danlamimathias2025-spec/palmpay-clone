@@ -28,7 +28,9 @@ export default function CardsModal({ onClose, userProfile }: CardsModalProps) {
 
           <div className="flex items-center gap-2 mb-4">
             <span className="text-lg font-mono tracking-widest">
-              {showCardNumber ? '5061 9845 2314 8082' : '•••• •••• •••• 8082'}
+              {showCardNumber
+                ? `5061 9845 2314 ${(userProfile.accountNumber || userProfile.phoneNumber || '8082').slice(-4)}`
+                : `•••• •••• •••• ${(userProfile.accountNumber || userProfile.phoneNumber || '8082').slice(-4)}`}
             </span>
             <button onClick={() => setShowCardNumber(!showCardNumber)} className="text-white/80 hover:text-white p-1">
               {showCardNumber ? <EyeOff size={15} /> : <Eye size={15} />}
@@ -38,7 +40,7 @@ export default function CardsModal({ onClose, userProfile }: CardsModalProps) {
           <div className="flex justify-between items-end text-xs">
             <div>
               <p className="text-[9px] text-white/60 uppercase">Card Holder</p>
-              <p className="font-bold">{userProfile.fullName || 'Mathias Danlami'}</p>
+              <p className="font-bold">{userProfile.fullName || userProfile.userName || 'PalmPay User'}</p>
             </div>
             <div>
               <p className="text-[9px] text-white/60 uppercase">Expires</p>

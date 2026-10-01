@@ -15,7 +15,7 @@ export default function AccountCard({ balance, accountNumber, onAddMoney, onView
   const [showBalance, setShowBalance] = useState(true);
   const [copied, setCopied] = useState(false);
 
-  const accountNum = normalizePalmPayAccountNumber(accountNumber || '8082076038');
+  const accountNum = normalizePalmPayAccountNumber(accountNumber || '');
 
   const handleCopy = (e: React.MouseEvent) => {
     e.stopPropagation();

@@ -6,11 +6,12 @@ import { doc, collection, addDoc, updateDoc, increment, serverTimestamp } from '
 interface BettingModalProps {
   balance: number;
   setBalance: (b: number) => void;
+  userProfile?: any;
   onClose: () => void;
   onSuccessTransaction?: (tx: any) => void;
 }
 
-export default function BettingModal({ balance, setBalance, onClose, onSuccessTransaction }: BettingModalProps) {
+export default function BettingModal({ balance, setBalance, userProfile, onClose, onSuccessTransaction }: BettingModalProps) {
   const [platform, setPlatform] = useState('SportyBet');
   const [customerId, setCustomerId] = useState('');
   const [amount, setAmount] = useState('1000');
@@ -27,7 +28,7 @@ export default function BettingModal({ balance, setBalance, onClose, onSuccessTr
 
     setIsProcessing(true);
     try {
-      const userId = '08082076038';
+      const userId = userProfile?.phoneNumber;
       const newTx = {
         amount: amt,
         formattedAmount: `-₦${amt.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`,
@@ -39,18 +40,20 @@ export default function BettingModal({ balance, setBalance, onClose, onSuccessTr
         timestamp: { seconds: Math.floor(Date.now() / 1000) },
       };
 
-      try {
-        const userRef = doc(db, 'users', userId);
-        const txRef = collection(userRef, 'transactions');
-        await addDoc(txRef, {
-          ...newTx,
-          timestamp: serverTimestamp(),
-        });
-        await updateDoc(userRef, {
-          balance: increment(-amt),
-        });
-      } catch (err) {
-        console.warn('Firestore sync fallback:', err);
+      if (userId) {
+        try {
+          const userRef = doc(db, 'users', userId);
+          const txRef = collection(userRef, 'transactions');
+          await addDoc(txRef, {
+            ...newTx,
+            timestamp: serverTimestamp(),
+          });
+          await updateDoc(userRef, {
+            balance: increment(-amt),
+          });
+        } catch (err) {
+          console.warn('Firestore sync fallback:', err);
+        }
       }
 
       setBalance(balance - amt);

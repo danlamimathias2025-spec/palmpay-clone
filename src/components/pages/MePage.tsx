@@ -72,7 +72,7 @@ export default function MePage({
               />
             ) : (
               <div className="w-full h-full rounded-full bg-[#1e2030] flex items-center justify-center text-white font-black text-lg">
-                {userProfile.userName ? userProfile.userName[0].toUpperCase() : 'M'}
+                {userProfile.userName ? userProfile.userName[0].toUpperCase() : (userProfile.fullName ? userProfile.fullName[0].toUpperCase() : 'U')}
               </div>
             )}
           </div>
@@ -80,7 +80,7 @@ export default function MePage({
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5">
               <h2 className="text-base font-bold font-script text-white truncate">
-                {userProfile.fullName || 'Mathias Danlami'}
+                {userProfile.fullName || userProfile.userName || 'PalmPay User'}
               </h2>
               <span className="bg-emerald-500/20 text-emerald-300 text-[10px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5 border border-emerald-500/30">
                 <UserCheck size={10} /> Tier 2
@@ -88,17 +88,17 @@ export default function MePage({
             </div>
 
             <div className="flex items-center gap-1.5 text-xs text-white/90 mt-1">
-              <span className="text-purple-200 font-semibold">Funds ID:</span>
+              <span className="text-purple-200 font-semibold">PalmPay A/C:</span>
               <span className="font-mono font-bold text-emerald-400 text-sm tracking-wider">{accountNum}</span>
               <button
                 onClick={handleCopy}
                 className="p-1 text-purple-300 hover:text-white transition-colors"
-                title="Copy 10-digit Funds ID"
+                title="Copy 10-digit PalmPay Account Number"
               >
                 {copied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
               </button>
             </div>
-            <p className="text-[10px] text-white/50 mt-0.5">Mobile: {userProfile.phoneNumber || '08082076038'}</p>
+            <p className="text-[10px] text-white/50 mt-0.5">Mobile: {userProfile.phoneNumber || 'Not provided'}</p>
           </div>
         </div>
 

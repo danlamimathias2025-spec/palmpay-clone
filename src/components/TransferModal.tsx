@@ -128,7 +128,7 @@ export default function TransferModal({
     setLoading(true);
 
     try {
-      const userId = userProfile.phoneNumber || '08082076038';
+      const userId = userProfile.phoneNumber;
       const newTx = {
         amount,
         type: 'transfer',
@@ -136,51 +136,53 @@ export default function TransferModal({
         accountNumber: formData.accountNumber,
         bankName: formData.bankName || 'Commercial Bank',
         bankCode: formData.bankCode,
-        senderName: userProfile.fullName || 'Mathias Danlami',
+        senderName: userProfile.fullName || userProfile.userName || 'PalmPay User',
         timestamp: { seconds: Math.floor(Date.now() / 1000) },
       };
 
-      try {
-        const userRef = doc(db, 'users', userId);
-        const transactionsRef = collection(userRef, 'transactions');
-        await addDoc(transactionsRef, {
-          ...newTx,
-          timestamp: serverTimestamp(),
-        });
-        await updateDoc(userRef, {
-          balance: increment(-amount),
-        });
+      if (userId) {
+        try {
+          const userRef = doc(db, 'users', userId);
+          const transactionsRef = collection(userRef, 'transactions');
+          await addDoc(transactionsRef, {
+            ...newTx,
+            timestamp: serverTimestamp(),
+          });
+          await updateDoc(userRef, {
+            balance: increment(-amount),
+          });
 
-        // If recipient is PalmPay, credit recipient in Firestore
-        const isPalmPay = (formData.bankName || '').toLowerCase().includes('palmpay') || formData.bankCode === '999991';
-        if (isPalmPay) {
-          const recCandidates = [formData.accountNumber, '0' + formData.accountNumber];
-          for (const cand of recCandidates) {
-            const recRef = doc(db, 'users', cand);
-            const recSnap = await getDoc(recRef);
-            if (recSnap.exists()) {
-              await addDoc(collection(recRef, 'transactions'), {
-                amount,
-                formattedAmount: `+₦${amount.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`,
-                type: 'credit',
-                category: 'transfer',
-                senderName: userProfile.fullName || 'Mathias Danlami',
-                senderBank: 'PalmPay Transfer',
-                recipient: formData.accountName || 'PalmPay User',
-                accountNumber: formData.accountNumber,
-                title: `Received from ${userProfile.fullName || 'Mathias Danlami'}`,
-                status: 'successful',
-                timestamp: serverTimestamp(),
-              });
-              await updateDoc(recRef, {
-                balance: increment(amount),
-              });
-              break;
+          // If recipient is PalmPay, credit recipient in Firestore
+          const isPalmPay = (formData.bankName || '').toLowerCase().includes('palmpay') || formData.bankCode === '999991';
+          if (isPalmPay) {
+            const recCandidates = [formData.accountNumber, '0' + formData.accountNumber];
+            for (const cand of recCandidates) {
+              const recRef = doc(db, 'users', cand);
+              const recSnap = await getDoc(recRef);
+              if (recSnap.exists()) {
+                await addDoc(collection(recRef, 'transactions'), {
+                  amount,
+                  formattedAmount: `+₦${amount.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`,
+                  type: 'credit',
+                  category: 'transfer',
+                  senderName: userProfile.fullName || userProfile.userName || 'PalmPay User',
+                  senderBank: 'PalmPay Transfer',
+                  recipient: formData.accountName || 'PalmPay User',
+                  accountNumber: formData.accountNumber,
+                  title: `Received from ${userProfile.fullName || userProfile.userName || 'PalmPay User'}`,
+                  status: 'successful',
+                  timestamp: serverTimestamp(),
+                });
+                await updateDoc(recRef, {
+                  balance: increment(amount),
+                });
+                break;
+              }
             }
           }
+        } catch (err) {
+          console.warn('Firestore offline/fallback update:', err);
         }
-      } catch (err) {
-        console.warn('Firestore offline/fallback update:', err);
       }
 
       setBalance(balance - amount);

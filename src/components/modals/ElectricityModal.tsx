@@ -6,11 +6,12 @@ import { doc, collection, addDoc, updateDoc, increment, serverTimestamp } from '
 interface ElectricityModalProps {
   balance: number;
   setBalance: (b: number) => void;
+  userProfile?: any;
   onClose: () => void;
   onSuccessTransaction?: (tx: any) => void;
 }
 
-export default function ElectricityModal({ balance, setBalance, onClose, onSuccessTransaction }: ElectricityModalProps) {
+export default function ElectricityModal({ balance, setBalance, userProfile, onClose, onSuccessTransaction }: ElectricityModalProps) {
   const [disco, setDisco] = useState('IKEDC (Ikeja Electric)');
   const [meterNumber, setMeterNumber] = useState('');
   const [amount, setAmount] = useState('2000');
@@ -34,7 +35,7 @@ export default function ElectricityModal({ balance, setBalance, onClose, onSucce
     setIsProcessing(true);
     try {
       const generatedToken = `${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}`;
-      const userId = '08082076038';
+      const userId = userProfile?.phoneNumber;
 
       const newTx = {
         amount: amt,
@@ -48,18 +49,20 @@ export default function ElectricityModal({ balance, setBalance, onClose, onSucce
         timestamp: { seconds: Math.floor(Date.now() / 1000) },
       };
 
-      try {
-        const userRef = doc(db, 'users', userId);
-        const txRef = collection(userRef, 'transactions');
-        await addDoc(txRef, {
-          ...newTx,
-          timestamp: serverTimestamp(),
-        });
-        await updateDoc(userRef, {
-          balance: increment(-amt),
-        });
-      } catch (err) {
-        console.warn('Firestore sync fallback:', err);
+      if (userId) {
+        try {
+          const userRef = doc(db, 'users', userId);
+          const txRef = collection(userRef, 'transactions');
+          await addDoc(txRef, {
+            ...newTx,
+            timestamp: serverTimestamp(),
+          });
+          await updateDoc(userRef, {
+            balance: increment(-amt),
+          });
+        } catch (err) {
+          console.warn('Firestore sync fallback:', err);
+        }
       }
 
       setBalance(balance - amt);

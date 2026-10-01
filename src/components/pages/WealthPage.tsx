@@ -8,20 +8,26 @@ interface WealthPageProps {
 }
 
 export default function WealthPage({ balance, onDepositSuccess }: WealthPageProps) {
-  const [savingsBalance, setSavingsBalance] = useState(40000);
+  const [savingsBalance, setSavingsBalance] = useState(() => {
+    return Number(localStorage.getItem('palmpay_savings_balance') || 0);
+  });
   const [showDepositModal, setShowDepositModal] = useState(false);
-  const [depositAmount, setDepositAmount] = useState('5000');
+  const [depositAmount, setDepositAmount] = useState('1000');
 
   const handleDeposit = () => {
     const amt = Number(depositAmount);
     if (amt > 0 && amt <= balance) {
-      setSavingsBalance((prev) => prev + amt);
+      const nextBal = savingsBalance + amt;
+      setSavingsBalance(nextBal);
+      localStorage.setItem('palmpay_savings_balance', nextBal.toString());
       onDepositSuccess(amt);
       setShowDepositModal(false);
     } else {
       alert("Insufficient balance or invalid amount.");
     }
   };
+
+  const cumulativeInterest = savingsBalance > 0 ? (savingsBalance * 0.0005).toFixed(2) : '0.00';
 
   return (
     <div className="flex flex-col min-h-screen pb-28 max-w-md mx-auto px-4 pt-3">
@@ -52,7 +58,7 @@ export default function WealthPage({ balance, onDepositSuccess }: WealthPageProp
           </div>
           <div className="flex items-center gap-2 text-xs text-emerald-400 font-semibold mt-1">
             <TrendingUp size={14} />
-            <span>Cumulative Interest: +₦1,420.50</span>
+            <span>Cumulative Interest: +₦{cumulativeInterest}</span>
           </div>
 
           <div className="mt-5 flex gap-2">

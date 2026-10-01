@@ -19,7 +19,7 @@ export default function BiometricAuthOverlay({
   const [errorMsg, setErrorMsg] = useState<string>('');
   const [authType, setAuthType] = useState<'fingerprint' | 'face' | 'passkey'>('fingerprint');
 
-  const cleanPhone = (userId || '08082076038').replace(/\D/g, '');
+  const cleanPhone = (userId || localStorage.getItem('palmpay_last_login_phone') || '').replace(/\D/g, '');
 
   const startAuth = async () => {
     setStatus('scanning');

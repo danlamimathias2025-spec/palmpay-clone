@@ -13,7 +13,7 @@ export default function RegistrationScreen({
   const [step, setStep] = useState<'phone' | 'details'>('phone');
   
   // Registration States
-  const [phoneNumber, setPhoneNumber] = useState('08082076038');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [fullName, setFullName] = useState('');
   const [nickname, setNickname] = useState('');
   const [password, setPassword] = useState('');

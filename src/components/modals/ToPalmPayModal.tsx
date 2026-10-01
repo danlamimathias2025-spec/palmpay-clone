@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Check, ShieldCheck, Loader2, Send, ArrowRight, UserCheck } from 'lucide-react';
 import { db } from '../../lib/firebase';
 import { doc, getDoc, collection, addDoc, updateDoc, increment, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
+import { normalizePalmPayAccountNumber } from '../../utils/account';
 
 interface ToPalmPayModalProps {
   balance: number;
@@ -145,9 +146,9 @@ export default function ToPalmPayModal({
 
     setLoading(true);
     try {
-      const senderId = userProfile.phoneNumber || '08082076038';
-      const senderName = userProfile.fullName || 'Mathias Shekwoaga Danlami';
-      const senderAcc = userProfile.accountNumber || '8082076038';
+      const senderId = userProfile.phoneNumber;
+      const senderName = userProfile.fullName || userProfile.userName || 'PalmPay User';
+      const senderAcc = userProfile.accountNumber || (userProfile.phoneNumber ? normalizePalmPayAccountNumber(userProfile.phoneNumber) : '');
       const finalRecipient = recipientName || 'PalmPay User (' + recipientInput.slice(-4) + ')';
       const targetAcc = recipientAccountNumber || recipientInput.slice(-10);
       const txRef = 'TRF-PALMPAY-' + Date.now();

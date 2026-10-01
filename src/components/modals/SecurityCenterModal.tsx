@@ -26,7 +26,11 @@ export default function SecurityCenterModal({ onClose, userProfile }: SecurityCe
     setBioTesting(true);
     setBioMessage(null);
     try {
-      const phone = userProfile?.phoneNumber || '08082076038';
+      const phone = userProfile?.phoneNumber;
+      if (!phone) {
+        setBioMessage('Please log in first.');
+        return;
+      }
       await registerBiometrics(phone, userProfile?.fullName || 'PalmPay User');
       const res = await verifyBiometrics(phone);
       if (res.success) {

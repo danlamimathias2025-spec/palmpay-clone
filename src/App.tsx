@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { db, ensureFirebaseAuth } from './lib/firebase';
-import { collection, doc, query, orderBy, onSnapshot, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, query, orderBy, onSnapshot, getDoc, getDocs, where, setDoc, serverTimestamp } from 'firebase/firestore';
 
 // Pages
 import HomePage from './components/pages/HomePage';
@@ -23,7 +23,7 @@ import LoginScreen from './components/LoginScreen';
 import RegistrationScreen from './components/RegistrationScreen';
 import SplashScreen from './components/SplashScreen';
 import FlashAlertOverlay from './components/FlashAlertOverlay';
-import { generatePalmPayAccountNumber, normalizePalmPayAccountNumber } from './utils/account';
+import { generatePalmPayAccountNumber, normalizePalmPayAccountNumber, normalizePhoneNumber } from './utils/account';
 import { formatNaira } from './utils/format';
 import {
   FlashAlertData,
@@ -65,147 +65,24 @@ export default function App() {
     }
     return true;
   });
-  const [balance, setBalance] = useState(0.62); // Matches screenshot ₦0.62
+  const [balance, setBalance] = useState(0);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [showHistoryView, setShowHistoryView] = useState(false);
 
-  // User Profile
+  // User Profile - isolated user profile state
   const [userProfile, setUserProfile] = useState({
-    fullName: 'Mathias Danlami',
-    userName: 'Mathias',
-    phoneNumber: '08082076038',
-    accountNumber: generatePalmPayAccountNumber('08082076038'), // '8082076038' (10-digit by stripping leading 0)
-    pin: '1234',
+    fullName: '',
+    userName: '',
+    phoneNumber: '',
+    accountNumber: '',
+    pin: '',
     imageUrl: '',
-    balance: 0.62,
+    balance: 0,
   });
 
-  // Initial Transactions matching Screenshot_20260930-021928_PalmPay.jpg exactly!
-  const [transactions, setTransactions] = useState<TransactionItem[]>([
-    // August
-    {
-      id: 'tx-aug-1',
-      title: 'Top up Airtime',
-      amount: 0,
-      formattedAmount: '0.00',
-      type: 'airtime',
-      network: 'MTN',
-      senderBank: 'MTN Telecom',
-      recipient: 'MTN Airtime (08082076038)',
-      date: 'Aug 29, 2026 10:35 PM',
-      month: 'Aug',
-      category: 'airtime',
-      status: 'successful',
-    },
-    // July
-    {
-      id: 'tx-jul-1',
-      title: 'Send - JOHN JAMES AYAKA',
-      recipient: 'JOHN JAMES AYAKA',
-      amount: 18,
-      formattedAmount: '-18.00',
-      type: 'transfer',
-      date: 'Jul 20, 2026 2:15 PM',
-      month: 'Jul',
-      category: 'transfer',
-      status: 'successful',
-    },
-    {
-      id: 'tx-jul-2',
-      title: 'CashBox Interest',
-      amount: 0.01,
-      formattedAmount: '+0.01',
-      type: 'interest',
-      date: 'Jul 20, 2026 6:28 AM',
-      month: 'Jul',
-      category: 'cashbox',
-      status: 'successful',
-    },
-    {
-      id: 'tx-jul-3',
-      title: 'CashBox Interest',
-      amount: 0.01,
-      formattedAmount: '+0.01',
-      type: 'interest',
-      date: 'Jul 19, 2026 6:44 AM',
-      month: 'Jul',
-      category: 'cashbox',
-      status: 'successful',
-    },
-    {
-      id: 'tx-jul-4',
-      title: 'Send - POS Transfer- ABUBAKAR GARBA',
-      recipient: 'ABUBAKAR GARBA',
-      amount: 400,
-      formattedAmount: '-400.00',
-      type: 'transfer',
-      date: 'Jul 18, 2026 5:20 PM',
-      month: 'Jul',
-      category: 'transfer',
-      status: 'successful',
-    },
-    {
-      id: 'tx-jul-5',
-      title: 'Electricity',
-      recipient: 'AEDC Abuja Electricity',
-      amount: 2000,
-      formattedAmount: '-2,000.00',
-      type: 'electricity',
-      date: 'Jul 18, 2026 5:02 PM',
-      month: 'Jul',
-      category: 'electricity',
-      status: 'successful',
-    },
-    {
-      id: 'tx-jul-6',
-      title: 'Send - TUKUR SAHABI MUHAMMAD',
-      recipient: 'TUKUR SAHABI MUHAMMAD',
-      amount: 300,
-      formattedAmount: '-300.00',
-      type: 'transfer',
-      date: 'Jul 18, 2026 1:53 PM',
-      month: 'Jul',
-      category: 'transfer',
-      status: 'successful',
-    },
-    {
-      id: 'tx-jul-7',
-      title: 'CashBox Auto Save',
-      amount: 78.6,
-      formattedAmount: '78.60',
-      type: 'autosave',
-      date: 'Jul 18, 2026 12:05 AM',
-      month: 'Jul',
-      category: 'cashbox',
-      status: 'successful',
-    },
-    {
-      id: 'tx-jul-8',
-      title: 'CashBox Auto Save',
-      amount: 2640,
-      formattedAmount: '2,640.00',
-      type: 'autosave',
-      date: 'Jul 17, 2026 11:18 PM',
-      month: 'Jul',
-      category: 'cashbox',
-      status: 'successful',
-    },
-    {
-      id: 'tx-jul-9',
-      title: 'Received from PEACE DANLAMI',
-      senderName: 'PEACE DANLAMI',
-      recipient: 'Mathias Danlami',
-      senderBank: 'Access Bank',
-      amount: 2640,
-      formattedAmount: '+2,640.00',
-      type: 'credit',
-      date: 'Jul 17, 2026 11:18 PM',
-      month: 'Jul',
-      category: 'transfer',
-      status: 'successful',
-    },
-  ]);
+  // Isolated Transactions subcollection state - strictly empty until authenticated user loads
+  const [transactions, setTransactions] = useState<TransactionItem[]>([]);
 
   // Modals state
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
@@ -233,12 +110,12 @@ export default function App() {
     requestNotificationPermission().catch(console.warn);
   }, []);
 
-  // Firebase Auth & Firestore real-time sync
+  // Firebase Auth & Firestore real-time sync - strictly isolated to current authenticated user
   useEffect(() => {
     // Ensure Firebase Auth session
     ensureFirebaseAuth().catch(console.warn);
 
-    if (userProfile.phoneNumber) {
+    if (isLoggedIn && userProfile.phoneNumber) {
       try {
         const userRef = doc(db, 'users', userProfile.phoneNumber);
 
@@ -258,21 +135,6 @@ export default function App() {
                 accountNumber: safeAcc,
                 balance: data.balance ?? prev.balance,
               }));
-            } else {
-              // Seed user profile into Firestore if not present
-              setDoc(
-                userRef,
-                {
-                  fullName: userProfile.fullName,
-                  userName: userProfile.userName,
-                  phoneNumber: userProfile.phoneNumber,
-                  accountNumber: userProfile.accountNumber || generatePalmPayAccountNumber(userProfile.phoneNumber),
-                  balance: balance,
-                  pin: userProfile.pin || '1234',
-                  createdAt: serverTimestamp(),
-                },
-                { merge: true }
-              ).catch(console.warn);
             }
           },
           (err) => {
@@ -280,7 +142,7 @@ export default function App() {
           }
         );
 
-        // 2. Sync Transactions Subcollection in Real Time
+        // 2. Sync Transactions Subcollection in Real Time - Strictly only this user's records
         const transactionsRef = collection(userRef, 'transactions');
         const q = query(transactionsRef, orderBy('timestamp', 'desc'));
 
@@ -293,7 +155,7 @@ export default function App() {
                 return {
                   ...data,
                   id: d.id,
-                  title: data.title || (data.type === 'credit' ? `Received from ${data.senderName || 'PEACE DANLAMI'}` : `Send - ${data.recipient || 'Recipient'}`),
+                  title: data.title || (data.type === 'credit' ? `Received from ${data.senderName || 'PalmPay Cashback'}` : `Send - ${data.recipient || 'Recipient'}`),
                   recipient: data.recipient,
                   senderName: data.senderName,
                   senderBank: data.senderBank,
@@ -334,18 +196,15 @@ export default function App() {
                       },
                     };
 
-                    // Trigger In-App Flash Alert Banner or save for when the user enters the app
                     if (document.visibilityState === 'hidden') {
                       localStorage.setItem('palmpay_pending_inapp_alert', JSON.stringify(alertData));
                     } else {
                       setActiveFlashAlert(alertData);
                     }
 
-                    // Trigger Audio & Haptics
                     playFlashChime(isCredit ? 'credit' : 'debit');
                     triggerHaptic();
 
-                    // Trigger Outside-App Browser / System Push Notification
                     sendOutsideAppNotification(alertData, () => {
                       setSelectedTransaction({
                         ...data,
@@ -357,19 +216,14 @@ export default function App() {
               }
 
               isInitialLoadRef.current = false;
-
-              setTransactions((prev) => {
-                const map = new Map<string, TransactionItem>();
-                liveData.forEach((item) => map.set(item.id, item));
-                prev.forEach((item) => {
-                  if (!map.has(item.id)) map.set(item.id, item);
-                });
-                return Array.from(map.values());
-              });
+              // Never merge foreign transactions; strictly set this user's live data
+              setTransactions(liveData);
+            } else {
+              setTransactions([]);
             }
           },
           (err) => {
-            console.warn('Transactions snapshot error (using local state):', err);
+            console.warn('Transactions snapshot error:', err);
           }
         );
 
@@ -380,8 +234,10 @@ export default function App() {
       } catch (e) {
         console.warn('Firebase init warning:', e);
       }
+    } else {
+      setTransactions([]);
     }
-  }, [userProfile.phoneNumber]);
+  }, [isLoggedIn, userProfile.phoneNumber]);
 
   // Listen for the user entering the app (visibilityState changes to visible)
   useEffect(() => {
@@ -529,64 +385,68 @@ export default function App() {
         <LoginScreen
           onLogin={async (phone, password) => {
             await ensureFirebaseAuth();
-            const acc = generatePalmPayAccountNumber(phone);
+            const cleanPhone = phone.trim().replace(/\D/g, '');
+            const canonicalPhone = normalizePhoneNumber(cleanPhone);
+            const acc10 = generatePalmPayAccountNumber(cleanPhone);
+
             try {
-              const userRef = doc(db, 'users', phone);
-              const snap = await getDoc(userRef);
-              if (snap.exists()) {
+              let snap = await getDoc(doc(db, 'users', canonicalPhone));
+              if (!snap.exists() && cleanPhone !== canonicalPhone) {
+                snap = await getDoc(doc(db, 'users', cleanPhone));
+              }
+              if (!snap.exists() && acc10) {
+                snap = await getDoc(doc(db, 'users', acc10));
+              }
+              if (!snap.exists()) {
+                const qPhone = query(collection(db, 'users'), where('phoneNumber', '==', canonicalPhone));
+                const qSnap = await getDocs(qPhone);
+                if (!qSnap.empty) {
+                  snap = qSnap.docs[0];
+                }
+              }
+              if (!snap.exists() && acc10) {
+                const qAcc = query(collection(db, 'users'), where('accountNumber', '==', acc10));
+                const qSnap = await getDocs(qAcc);
+                if (!qSnap.empty) {
+                  snap = qSnap.docs[0];
+                }
+              }
+
+              if (snap && snap.exists()) {
                 const data = snap.data();
-                // Validate registered 6-digit password
-                const registeredPassword = data.password || '123456';
-                if (registeredPassword !== password) {
+                const registeredPassword = data.password;
+                if (registeredPassword && registeredPassword !== password) {
                   alert('Incorrect 6-digit password. Please try again.');
                   return;
                 }
 
-                setUserProfile((prev) => ({
-                  ...prev,
-                  ...data,
-                  phoneNumber: phone,
-                  accountNumber: data.accountNumber || acc,
-                }));
-                if (typeof data.balance === 'number') {
-                  setBalance(data.balance);
-                }
-              } else {
-                // If it is a fresh simulation, let's auto-create on first login with default pass 123456
-                if (password !== '123456') {
-                  alert('This number is not registered. Please tap the back arrow to Open an Account (Sign Up).');
-                  return;
-                }
+                const userDocId = snap.id;
+                const safePhone = data.phoneNumber || userDocId;
+                const safeAcc = normalizePalmPayAccountNumber(data.accountNumber || safePhone);
 
-                await setDoc(
-                  userRef,
-                  {
-                    fullName: 'Mathias Danlami',
-                    userName: 'Mathias',
-                    phoneNumber: phone,
-                    accountNumber: acc,
-                    balance: 0.62,
-                    pin: '1234',
-                    password: '123456',
-                    createdAt: serverTimestamp(),
-                  },
-                  { merge: true }
-                );
-                setUserProfile((prev) => ({
-                  ...prev,
-                  phoneNumber: phone,
-                  accountNumber: acc,
-                }));
+                // Isolate session: clear prior state completely
+                isInitialLoadRef.current = true;
+                setTransactions([]);
+                setUserProfile({
+                  fullName: data.fullName || '',
+                  userName: data.userName || data.fullName?.split(' ')[0] || 'User',
+                  phoneNumber: userDocId,
+                  accountNumber: safeAcc,
+                  pin: data.pin || '',
+                  imageUrl: data.imageUrl || '',
+                  balance: data.balance ?? 0,
+                });
+                setBalance(data.balance ?? 0);
+              } else {
+                alert('This account is not registered. Please tap the back arrow to Open an Account (Sign Up).');
+                return;
               }
             } catch (err) {
               console.warn('Firebase login error:', err);
-              setUserProfile((prev) => ({
-                ...prev,
-                phoneNumber: phone,
-                accountNumber: acc,
-              }));
+              alert('Unable to connect to database. Please check your connection.');
+              return;
             }
-            // Save last login phone & timestamp to allow password-only login within 60 seconds
+            // Save last login phone & timestamp to allow password-only login within fast-path duration
             localStorage.setItem('palmpay_last_login_phone', phone);
             localStorage.setItem('palmpay_last_login_time', Date.now().toString());
             setIsLoggedIn(true);
@@ -599,29 +459,56 @@ export default function App() {
         <RegistrationScreen
           onRegister={async (data) => {
             await ensureFirebaseAuth();
-            const acc = data.accountNumber || generatePalmPayAccountNumber(data.phoneNumber);
-            const newProfile = {
-              ...data,
-              accountNumber: acc,
-              balance: 0.62,
-              createdAt: serverTimestamp(),
-            };
+            const cleanPhone = data.phoneNumber.trim().replace(/\D/g, '');
+            const canonicalPhone = normalizePhoneNumber(cleanPhone);
+            const acc10 = generatePalmPayAccountNumber(cleanPhone);
+
             try {
-              const userRef = doc(db, 'users', data.phoneNumber);
-              await setDoc(userRef, newProfile, { merge: true });
+              // 1. Check for account existence to avoid accidental collision or overwrite
+              const existingCheck = await getDoc(doc(db, 'users', canonicalPhone));
+              if (existingCheck.exists()) {
+                alert('An account with this mobile number already exists. Please Log In.');
+                setAuthMode('login');
+                return;
+              }
+
+              const newProfile = {
+                fullName: data.fullName.trim(),
+                userName: data.userName.trim(),
+                phoneNumber: canonicalPhone,
+                accountNumber: acc10,
+                password: data.password,
+                pin: data.pin,
+                balance: 0,
+                createdAt: serverTimestamp(),
+              };
+
+              // Store separately and securely under canonical phone identifier
+              const userRef = doc(db, 'users', canonicalPhone);
+              await setDoc(userRef, newProfile);
+
+              // Initialize clean isolated session
+              isInitialLoadRef.current = true;
+              setTransactions([]);
+              setUserProfile({
+                fullName: newProfile.fullName,
+                userName: newProfile.userName,
+                phoneNumber: canonicalPhone,
+                accountNumber: acc10,
+                pin: newProfile.pin,
+                imageUrl: '',
+                balance: 0,
+              });
+              setBalance(0);
+
+              // Save last login phone & timestamp
+              localStorage.setItem('palmpay_last_login_phone', canonicalPhone);
+              localStorage.setItem('palmpay_last_login_time', Date.now().toString());
+              setIsLoggedIn(true);
             } catch (err) {
               console.warn('Firebase register error:', err);
+              alert('Registration encountered an error. Please try again.');
             }
-            setUserProfile((prev) => ({
-              ...prev,
-              ...data,
-              accountNumber: acc,
-              userName: data.fullName?.split(' ')[0] || data.userName || 'Mathias',
-            }));
-            // Save last login phone & timestamp to allow password-only login within 60 seconds
-            localStorage.setItem('palmpay_last_login_phone', data.phoneNumber);
-            localStorage.setItem('palmpay_last_login_time', Date.now().toString());
-            setIsLoggedIn(true);
           }}
           onSwitchToLogin={() => setAuthMode('login')}
         />
@@ -743,6 +630,22 @@ export default function App() {
                 onLogout={() => {
                   setIsLoggedIn(false);
                   setActiveTab('home');
+                  setUserProfile({
+                    fullName: '',
+                    userName: '',
+                    phoneNumber: '',
+                    accountNumber: '',
+                    pin: '',
+                    imageUrl: '',
+                    balance: 0,
+                  });
+                  setTransactions([]);
+                  setBalance(0);
+                  setActiveFlashAlert(null);
+                  isInitialLoadRef.current = true;
+                  localStorage.removeItem('palmpay_last_login_phone');
+                  localStorage.removeItem('palmpay_last_login_time');
+                  localStorage.removeItem('palmpay_pending_inapp_alert');
                 }}
               />
             )}
@@ -865,6 +768,7 @@ export default function App() {
           <BettingModal
             balance={balance}
             setBalance={setBalance}
+            userProfile={userProfile}
             onClose={() => setShowBettingModal(false)}
             onSuccessTransaction={(tx) => {
               handleAddTransaction({
@@ -881,6 +785,7 @@ export default function App() {
           <ElectricityModal
             balance={balance}
             setBalance={setBalance}
+            userProfile={userProfile}
             onClose={() => setShowElectricityModal(false)}
             onSuccessTransaction={(tx) => {
               handleAddTransaction({

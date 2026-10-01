@@ -20,7 +20,7 @@ export default function DataModal({
   onSuccessTransaction,
 }: DataModalProps) {
   const [network, setNetwork] = useState('MTN');
-  const [phoneNumber, setPhoneNumber] = useState(userProfile.phoneNumber || '08082076038');
+  const [phoneNumber, setPhoneNumber] = useState(userProfile.phoneNumber || '');
   const [selectedPlan, setSelectedPlan] = useState({ plan: '2.5GB (2-Day)', price: 500 });
   const [isProcessing, setIsProcessing] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -40,7 +40,7 @@ export default function DataModal({
 
     setIsProcessing(true);
     try {
-      const userId = userProfile.phoneNumber || '08082076038';
+      const userId = userProfile?.phoneNumber;
       const newTx = {
         amount: selectedPlan.price,
         formattedAmount: `-₦${selectedPlan.price.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`,
@@ -56,18 +56,20 @@ export default function DataModal({
         timestamp: { seconds: Math.floor(Date.now() / 1000) },
       };
 
-      try {
-        const userRef = doc(db, 'users', userId);
-        const txRef = collection(userRef, 'transactions');
-        await addDoc(txRef, {
-          ...newTx,
-          timestamp: serverTimestamp(),
-        });
-        await updateDoc(userRef, {
-          balance: increment(-selectedPlan.price),
-        });
-      } catch (err) {
-        console.warn('Firestore fallback sync:', err);
+      if (userId) {
+        try {
+          const userRef = doc(db, 'users', userId);
+          const txRef = collection(userRef, 'transactions');
+          await addDoc(txRef, {
+            ...newTx,
+            timestamp: serverTimestamp(),
+          });
+          await updateDoc(userRef, {
+            balance: increment(-selectedPlan.price),
+          });
+        } catch (err) {
+          console.warn('Firestore fallback sync:', err);
+        }
       }
 
       setBalance(balance - selectedPlan.price);

@@ -11,8 +11,8 @@ export default function LoginScreen({
 }) {
   // Step State: 'phone' or 'password'
   const [step, setStep] = useState<'phone' | 'password'>('phone');
-  const [phoneNumber, setPhoneNumber] = useState('07073386737');
-  const [password, setPassword] = useState('123456');
+  const [phoneNumber, setPhoneNumber] = useState(() => localStorage.getItem('palmpay_last_login_phone') || '');
+  const [password, setPassword] = useState('');
   const [showPassword, setPasswordVisible] = useState(false);
   const [showInvitation, setShowInvitation] = useState(false);
   const [invitationCode, setInvitationCode] = useState('');

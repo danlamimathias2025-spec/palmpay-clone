@@ -95,16 +95,18 @@ export default function AddFundsModal({
     };
 
     try {
-      const userId = userProfile.phoneNumber || '08082076038';
-      const userRef = doc(db, 'users', userId);
-      const transactionsRef = collection(userRef, 'transactions');
-      await addDoc(transactionsRef, {
-        ...newTransaction,
-        timestamp: serverTimestamp(),
-      });
-      await updateDoc(userRef, {
-        balance: increment(num),
-      });
+      const userId = userProfile?.phoneNumber;
+      if (userId) {
+        const userRef = doc(db, 'users', userId);
+        const transactionsRef = collection(userRef, 'transactions');
+        await addDoc(transactionsRef, {
+          ...newTransaction,
+          timestamp: serverTimestamp(),
+        });
+        await updateDoc(userRef, {
+          balance: increment(num),
+        });
+      }
     } catch (err) {
       console.warn('Firestore fallback sync:', err);
     }

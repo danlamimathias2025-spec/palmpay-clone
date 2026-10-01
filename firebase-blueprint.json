@@ -2,39 +2,64 @@
   "entities": {
     "User": {
       "title": "User",
-      "description": "User profile with account balance",
+      "description": "User profile with account balance and isolated security credentials",
       "type": "object",
       "properties": {
-        "fullName": { "type": "string" },
-        "userName": { "type": "string" },
-        "phoneNumber": { "type": "string" },
+        "fullName": { "type": "string", "maxLength": 100 },
+        "userName": { "type": "string", "maxLength": 50 },
+        "phoneNumber": { "type": "string", "maxLength": 20 },
+        "accountNumber": { "type": "string", "maxLength": 20 },
         "balance": { "type": "number" },
-        "pin": { "type": "string" }
+        "pin": { "type": "string", "maxLength": 6 },
+        "password": { "type": "string", "maxLength": 10 }
       },
-      "required": ["fullName", "userName", "phoneNumber", "balance", "pin"]
+      "required": ["fullName", "userName", "phoneNumber", "accountNumber", "balance", "pin"]
     },
     "Transaction": {
       "title": "Transaction",
-      "description": "Financial transaction",
+      "description": "Financial transaction record stored in isolated user subcollection",
       "type": "object",
       "properties": {
-        "userId": { "type": "string" },
+        "userId": { "type": "string", "maxLength": 64 },
         "amount": { "type": "number" },
-        "type": { "type": "string" },
-        "recipient": { "type": "string" },
+        "type": { "type": "string", "maxLength": 30 },
+        "recipient": { "type": "string", "maxLength": 120 },
+        "senderName": { "type": "string", "maxLength": 120 },
+        "accountNumber": { "type": "string", "maxLength": 20 },
+        "reference": { "type": "string", "maxLength": 128 },
         "timestamp": { "type": "string", "format": "date-time" }
       },
-      "required": ["userId", "amount", "type", "timestamp"]
+      "required": ["userId", "amount", "type"]
+    },
+    "ProcessedReference": {
+      "title": "ProcessedReference",
+      "description": "Idempotency record for external Site A incoming transactions",
+      "type": "object",
+      "properties": {
+        "reference": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 64 },
+        "accountNumber": { "type": "string", "maxLength": 20 },
+        "amount": { "type": "number" }
+      },
+      "required": ["reference", "userId", "amount"]
     }
   },
   "firestore": {
     "users/{userId}": {
       "schema": { "$ref": "User" },
-      "description": "Individual user document"
+      "description": "Isolated individual user profile document"
     },
     "users/{userId}/transactions/{transactionId}": {
       "schema": { "$ref": "Transaction" },
-      "description": "User transactions"
+      "description": "Isolated user transaction history subcollection"
+    },
+    "processed_references/{refId}": {
+      "schema": { "$ref": "ProcessedReference" },
+      "description": "Webhook transaction idempotency registry"
+    },
+    "transactions/{transactionId}": {
+      "schema": { "$ref": "Transaction" },
+      "description": "Global transaction ledger for audit and verification"
     }
   }
 }

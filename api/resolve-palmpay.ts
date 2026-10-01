@@ -98,6 +98,28 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
         res.writeHead(200, { "Content-Type": "application/json" });
         return res.end(JSON.stringify({ account_name: qPhoneSnap.docs[0].data().fullName, success: true }));
       }
+
+      // Deep scan registered users
+      const allUsersSnap = await getDocs(usersCol);
+      const target10 = cleaned.slice(-10);
+      for (const uDoc of allUsersSnap.docs) {
+        const uData = uDoc.data();
+        const docIdDigits = uDoc.id.replace(/\D/g, "");
+        const phoneDigits = (uData.phoneNumber || "").toString().replace(/\D/g, "");
+        const accDigits = (uData.accountNumber || "").toString().replace(/\D/g, "");
+
+        if (
+          target10 === docIdDigits.slice(-10) ||
+          target10 === phoneDigits.slice(-10) ||
+          target10 === accDigits.slice(-10)
+        ) {
+          const name = uData.fullName || uData.userName;
+          if (name) {
+            res.writeHead(200, { "Content-Type": "application/json" });
+            return res.end(JSON.stringify({ account_name: name, success: true }));
+          }
+        }
+      }
     } catch (err) {
       console.warn("[Vercel Resolve PalmPay] Firestore lookup error:", err);
     }

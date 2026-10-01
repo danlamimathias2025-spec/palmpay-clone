@@ -93,8 +93,8 @@ export default function HomePage({
         {recentTransactions.map((tx) => {
           const isCredit = tx.type === 'credit' || tx.type === 'interest';
           const titleText = isCredit 
-            ? `Received from ${(tx.senderName || 'MATHIAS SHEKWOAGA DANLAMI').toUpperCase()}`
-            : `Paid to ${(tx.recipient || 'USER').toUpperCase()}`;
+            ? (tx.title || `Received from ${(tx.senderName || 'PalmPay Cashback').toUpperCase()}`)
+            : (tx.title || `Paid to ${(tx.recipient || 'Recipient').toUpperCase()}`);
           const amountText = typeof tx.amount === 'number' 
             ? `₦${tx.amount.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`
             : tx.formattedAmount;
@@ -107,11 +107,11 @@ export default function HomePage({
               <div className="text-left min-w-0 pr-2">
                 <p className="text-xs font-semibold text-white font-sans truncate">{titleText}</p>
                 <p className="text-[10px] text-white/50 font-sans mt-0.5">
-                  {amountText} <span className="text-white/40 font-medium">Success</span>
+                  {amountText} <span className="text-emerald-400 font-medium">Success</span>
                 </p>
               </div>
               <div className="text-right shrink-0">
-                <p className="text-[10px] text-white/40 font-sans">{tx.date || 'Today 11:16 PM'}</p>
+                <p className="text-[10px] text-white/40 font-sans">{tx.date || 'Just now'}</p>
               </div>
             </div>
           );

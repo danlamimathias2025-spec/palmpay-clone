@@ -26,29 +26,31 @@ export default function TransactionReceipt({
   const isIncoming = transaction.type === 'credit' || (typeof transaction.formattedAmount === 'string' && transaction.formattedAmount.startsWith('+')) || transaction.senderName;
 
   // Determine sender and bank
-  const senderName = transaction.senderName || (transaction.title?.includes('from ') ? transaction.title.split('from ')[1] : (isIncoming ? 'PEACE DANLAMI' : 'Mathias Danlami'));
-  const bankName = transaction.senderBank || transaction.bankName || (transaction.title?.includes('POS') ? 'Moniepoint' : 'PalmPay');
+  const senderName =
+    transaction.senderName ||
+    (transaction.title?.includes('from ') ? transaction.title.split('from ')[1] : (isIncoming ? 'PalmPay Cashback' : 'PalmPay User'));
+  const bankName = transaction.senderBank || transaction.bankName || (transaction.title?.includes('POS') ? 'Commercial Bank' : 'PalmPay');
 
   // Format amount
   const rawNum = typeof transaction.amount === 'number'
     ? Math.abs(transaction.amount)
-    : parseFloat(transaction.amount?.toString().replace(/[^0-9.]/g, '')) || 11000;
+    : parseFloat(transaction.amount?.toString().replace(/[^0-9.]/g, '')) || 0;
   const formattedNum = rawNum.toLocaleString('en-NG', { minimumFractionDigits: 2 });
 
   // Account masking
   const maskedAccount = transaction.accountNumber
     ? `${transaction.accountNumber.slice(0, 3)}***${transaction.accountNumber.slice(-4)}`
-    : '694***2715';
+    : '***';
 
   // Completion time
-  const completionTime = transaction.date || '17:17, Jul 15, 2026';
+  const completionTime = transaction.date || 'Just now';
 
   // Deterministic or stored IDs
-  const txId = transaction.reference || transaction.txId || transaction.id || `6037n6og${Math.abs(rawNum).toString().slice(0, 3)}d`;
-  const sessionId = transaction.sessionId || transaction.reference || `0904052607151717532344842${Math.floor(10000 + Math.random() * 90000)}`;
+  const txId = transaction.reference || transaction.txId || transaction.id || `TX-${Date.now()}`;
+  const sessionId = transaction.sessionId || transaction.reference || `SES-${Date.now()}`;
 
   // Narration / Remark
-  const remarkText = transaction.narration || transaction.description || transaction.remark || `${senderName} Trf for CustomerAT126TRF2MPT8k7132077427440805801984`;
+  const remarkText = transaction.narration || transaction.description || transaction.remark || (isIncoming ? `Deposit from ${senderName}` : `Transfer to ${transaction.recipient || 'Recipient'}`);
 
   const copyToClipboard = (text: string, field: string) => {
     navigator.clipboard.writeText(text);

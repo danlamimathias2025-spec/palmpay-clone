@@ -76,8 +76,8 @@ export async function registerBiometrics(userId: string, displayName: string): P
         id: host,
       },
       user: {
-        id: strToBuffer(cleanId || '08082076038'),
-        name: cleanId || '08082076038',
+        id: strToBuffer(cleanId || 'palmpay_user'),
+        name: cleanId || 'palmpay_user',
         displayName: displayName || 'PalmPay User',
       },
       pubKeyCredParams: [
@@ -124,7 +124,7 @@ export async function verifyBiometrics(userId?: string): Promise<{ success: bool
     return { success: false, error: 'Window not defined' };
   }
 
-  const cleanId = (userId || localStorage.getItem('palmpay_bio_last_user') || '08082076038').replace(/\D/g, '');
+  const cleanId = (userId || localStorage.getItem('palmpay_bio_last_user') || '').replace(/\D/g, '');
   const savedCred = localStorage.getItem(`palmpay_bio_${cleanId}`) || localStorage.getItem('palmpay_bio_default');
 
   if (!window.PublicKeyCredential || !savedCred || savedCred.startsWith('simulated_') || savedCred.startsWith('fallback_')) {

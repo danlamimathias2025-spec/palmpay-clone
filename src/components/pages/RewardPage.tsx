@@ -6,7 +6,9 @@ interface RewardPageProps {
 }
 
 export default function RewardPage({ onClaimVoucher }: RewardPageProps) {
-  const [points, setPoints] = useState(2450);
+  const [points, setPoints] = useState(() => {
+    return Number(localStorage.getItem('palmpay_user_points') || 0);
+  });
   const [hasCheckedIn, setHasCheckedIn] = useState(false);
   const [isSpinning, setIsSpinning] = useState(false);
   const [spinResult, setSpinResult] = useState<string | null>(null);
@@ -14,7 +16,9 @@ export default function RewardPage({ onClaimVoucher }: RewardPageProps) {
   const handleCheckIn = () => {
     if (!hasCheckedIn) {
       setHasCheckedIn(true);
-      setPoints((prev) => prev + 50);
+      const nextPoints = points + 50;
+      setPoints(nextPoints);
+      localStorage.setItem('palmpay_user_points', nextPoints.toString());
       alert("Daily check-in successful! +50 PalmPoints added.");
     }
   };

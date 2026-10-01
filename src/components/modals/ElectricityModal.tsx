@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, Zap, Check, Copy, Loader2 } from 'lucide-react';
 import { db } from '../../lib/firebase';
-import { doc, collection, addDoc, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
+import { doc, collection, addDoc, setDoc, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
 import LoadingExecutionOverlay from '../LoadingExecutionOverlay';
 
 interface ElectricityModalProps {
@@ -58,9 +58,7 @@ export default function ElectricityModal({ balance, setBalance, userProfile, onC
             ...newTx,
             timestamp: serverTimestamp(),
           });
-          await updateDoc(userRef, {
-            balance: increment(-amt),
-          });
+          await setDoc(userRef, { balance: increment(-amt) }, { merge: true });
         } catch (err) {
           console.warn('Firestore sync fallback:', err);
         }

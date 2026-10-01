@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, Check, ShieldCheck, Loader2, Send, ArrowRight, UserCheck } from 'lucide-react';
 import { db } from '../../lib/firebase';
-import { doc, getDoc, collection, addDoc, updateDoc, increment, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, collection, addDoc, setDoc, updateDoc, increment, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
 import { normalizePalmPayAccountNumber } from '../../utils/account';
 import LoadingExecutionOverlay from '../LoadingExecutionOverlay';
 
@@ -185,9 +185,7 @@ export default function ToPalmPayModal({
         const senderRef = doc(db, 'users', senderId);
         const senderTxRef = collection(senderRef, 'transactions');
         await addDoc(senderTxRef, senderTx);
-        await updateDoc(senderRef, {
-          balance: increment(-num),
-        });
+        await setDoc(senderRef, { balance: increment(-num) }, { merge: true });
 
         // 2. Credit Recipient in Firestore & Record Recipient Transaction
         const recipientDocId = recipientUserId || recipientInput;
@@ -217,18 +215,14 @@ export default function ToPalmPayModal({
         if (recipientSnap.exists()) {
           const recTxRef = collection(recipientRef, 'transactions');
           await addDoc(recTxRef, recipientCreditTx);
-          await updateDoc(recipientRef, {
-            balance: increment(num),
-          });
+          await setDoc(recipientRef, { balance: increment(num) }, { merge: true });
         } else {
           // If doc doesn't exist under raw recipientInput, check if 10-digit ID doc exists
           const altDocRef = doc(db, 'users', targetAcc);
           const altSnap = await getDoc(altDocRef);
           if (altSnap.exists()) {
             await addDoc(collection(altDocRef, 'transactions'), recipientCreditTx);
-            await updateDoc(altDocRef, {
-              balance: increment(num),
-            });
+            await setDoc(altDocRef, { balance: increment(num) }, { merge: true });
           }
         }
       } catch (err) {

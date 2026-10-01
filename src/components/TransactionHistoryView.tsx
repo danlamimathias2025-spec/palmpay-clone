@@ -102,7 +102,14 @@ export default function TransactionHistoryView({
       }
     });
 
-    return Object.values(groups);
+    const groupArray = Object.values(groups);
+    groupArray.sort((a, b) => {
+      const latestA = a.list[0]?.rawTimestamp || 0;
+      const latestB = b.list[0]?.rawTimestamp || 0;
+      return latestB - latestA;
+    });
+
+    return groupArray;
   }, [filteredTransactions]);
 
   const handleDownloadStatement = () => {

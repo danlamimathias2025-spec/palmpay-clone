@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { db, ensureFirebaseAuth } from './lib/firebase';
-import { collection, doc, query, orderBy, onSnapshot, getDoc, getDocs, where, setDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, query, orderBy, onSnapshot, getDoc, getDocs, where, setDoc, addDoc, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
 
 // Pages
 import HomePage from './components/pages/HomePage';
@@ -117,7 +117,9 @@ export default function App() {
 
     if (isLoggedIn && userProfile.phoneNumber) {
       try {
-        const userRef = doc(db, 'users', userProfile.phoneNumber);
+        const userPhone = userProfile.phoneNumber;
+        const userAcc = userProfile.accountNumber || (userPhone ? normalizePalmPayAccountNumber(userPhone) : '');
+        const userRef = doc(db, 'users', userPhone);
 
         // 1. Sync User Profile in Real Time
         const unsubUser = onSnapshot(
@@ -128,7 +130,7 @@ export default function App() {
               if (typeof data.balance === 'number') {
                 setBalance(data.balance);
               }
-              const safeAcc = normalizePalmPayAccountNumber(data.accountNumber || data.phoneNumber || userProfile.phoneNumber);
+              const safeAcc = normalizePalmPayAccountNumber(data.accountNumber || data.phoneNumber || userPhone);
               setUserProfile((prev) => ({
                 ...prev,
                 ...data,
@@ -142,94 +144,136 @@ export default function App() {
           }
         );
 
-        // 2. Sync Transactions Subcollection in Real Time - Strictly only this user's records
-        const transactionsRef = collection(userRef, 'transactions');
-        const q = query(transactionsRef, orderBy('timestamp', 'desc'));
+        // Maps to hold subcollection and root transactions
+        const subMap = new Map<string, TransactionItem>();
+        const rootMap = new Map<string, TransactionItem>();
 
-        const unsubTx = onSnapshot(
-          q,
+        const syncCombinedTransactions = () => {
+          const combined = new Map<string, TransactionItem>();
+          subMap.forEach((v, k) => combined.set(k, v));
+          rootMap.forEach((v, k) => combined.set(k, v));
+
+          const list = Array.from(combined.values());
+          list.sort((a, b) => (b.rawTimestamp || 0) - (a.rawTimestamp || 0));
+          setTransactions(list);
+        };
+
+        const parseTx = (id: string, data: any): TransactionItem => {
+          const isCredit = data.type === 'credit' || (typeof data.amount === 'number' && data.amount > 0 && data.type !== 'transfer' && data.type !== 'bill' && data.type !== 'airtime' && data.type !== 'data' && data.type !== 'electricity' && data.type !== 'betting');
+          const amt = Math.abs(Number(data.amount) || 0);
+          const formatted = data.formattedAmount || `${isCredit ? '+' : '-'}₦${amt.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
+          const rawDate = data.date || (data.createdAt?.seconds ? new Date(data.createdAt.seconds * 1000).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : (data.timestamp?.seconds ? new Date(data.timestamp.seconds * 1000).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Just now'));
+          
+          let mName = data.month;
+          if (!mName && rawDate) {
+            const parts = rawDate.split(' ');
+            if (parts.length > 0 && parts[0].length >= 3) {
+              mName = parts[0].slice(0, 3);
+            }
+          }
+
+          const rawTimestamp = data.timestamp?.seconds || data.createdAt?.seconds || (typeof data.timestamp === 'number' ? data.timestamp : (typeof data.rawTimestamp === 'number' ? data.rawTimestamp : Date.now() / 1000));
+
+          return {
+            ...data,
+            id: id || data.reference || `tx-${Date.now()}`,
+            title: data.title || (isCredit ? `Received from ${data.senderName || 'PalmPay'}` : `Send - ${data.recipient || 'Recipient'}`),
+            recipient: data.recipient,
+            senderName: data.senderName,
+            senderBank: data.senderBank,
+            amount: amt,
+            formattedAmount: formatted,
+            type: data.type || (isCredit ? 'credit' : 'transfer'),
+            date: rawDate,
+            month: mName || 'Recent',
+            category: data.category || 'transfer',
+            status: (data.status === 'failed' ? 'failed' : data.status === 'pending' ? 'pending' : 'successful') as 'failed' | 'pending' | 'successful',
+            narration: data.narration,
+            reference: data.reference || id,
+            sessionId: data.sessionId || data.reference || id,
+            accountNumber: data.accountNumber || userAcc,
+            rawTimestamp,
+          };
+        };
+
+        // 2. Sync Subcollection Transactions in Real Time
+        const subTxRef = collection(userRef, 'transactions');
+        const unsubSubTx = onSnapshot(
+          subTxRef,
           (snapshot) => {
-            if (!snapshot.empty) {
-              const liveData = snapshot.docs.map((d) => {
-                const data = d.data();
-                return {
-                  ...data,
-                  id: d.id,
-                  title: data.title || (data.type === 'credit' ? `Received from ${data.senderName || 'PalmPay Cashback'}` : `Send - ${data.recipient || 'Recipient'}`),
-                  recipient: data.recipient,
-                  senderName: data.senderName,
-                  senderBank: data.senderBank,
-                  amount: data.amount,
-                  formattedAmount: data.formattedAmount || `${data.type === 'credit' ? '+' : '-'}₦${Number(data.amount).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`,
-                  type: data.type || 'transfer',
-                  date: data.date || 'Just now',
-                  month: (data.month || 'Sep') as 'Jan' | 'Feb' | 'Mar' | 'Apr' | 'May' | 'Jun' | 'Jul' | 'Aug' | 'Sep' | 'Oct' | 'Nov' | 'Dec',
-                  category: data.category || 'transfer',
-                  status: 'successful' as const,
-                  narration: data.narration,
+            snapshot.docs.forEach((d) => {
+              subMap.set(d.id, parseTx(d.id, d.data()));
+            });
+
+            // Handle doc deletions
+            snapshot.docChanges().forEach((change) => {
+              if (change.type === 'removed') {
+                subMap.delete(change.doc.id);
+              }
+              if (change.type === 'added' && !isInitialLoadRef.current) {
+                const data = change.doc.data();
+                const isCredit = data.type === 'credit';
+                const alertData: FlashAlertData = {
+                  id: change.doc.id,
+                  type: isCredit ? 'credit' : 'debit',
+                  title: data.title || (isCredit ? 'Credit Alert Received' : 'Debit Alert'),
+                  amount: Number(data.amount) || 0,
+                  formattedAmount: data.formattedAmount || `${isCredit ? '+' : '-'}₦${Number(data.amount).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`,
+                  senderOrRecipient: isCredit ? (data.senderName || 'PalmPay Cashback') : (data.recipient || 'Commercial Bank'),
+                  bankName: data.senderBank || 'PalmPay',
+                  accountNumber: data.accountNumber || userAcc,
                   reference: data.reference,
-                  sessionId: data.sessionId,
-                  accountNumber: data.accountNumber,
+                  date: data.date || 'Just now',
+                  fullTransaction: parseTx(change.doc.id, data),
                 };
-              });
 
-              // Detect incoming new transaction after initial load to fire Flash Alert
-              if (!isInitialLoadRef.current) {
-                snapshot.docChanges().forEach((change) => {
-                  if (change.type === 'added') {
-                    const data = change.doc.data();
-                    const isCredit = data.type === 'credit';
-                    const alertData: FlashAlertData = {
-                      id: change.doc.id,
-                      type: isCredit ? 'credit' : 'debit',
-                      title: data.title || (isCredit ? 'Credit Alert Received' : 'Debit Alert'),
-                      amount: Number(data.amount) || 0,
-                      formattedAmount: data.formattedAmount || `${isCredit ? '+' : '-'}₦${Number(data.amount).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`,
-                      senderOrRecipient: isCredit ? (data.senderName || 'PalmPay Cashback') : (data.recipient || 'Commercial Bank'),
-                      bankName: data.senderBank || 'PalmPay',
-                      accountNumber: data.accountNumber || userProfile.accountNumber,
-                      reference: data.reference,
-                      date: data.date || 'Just now',
-                      fullTransaction: {
-                        ...data,
-                        id: change.doc.id,
-                      },
-                    };
+                if (document.visibilityState === 'hidden') {
+                  localStorage.setItem('palmpay_pending_inapp_alert', JSON.stringify(alertData));
+                } else {
+                  setActiveFlashAlert(alertData);
+                }
 
-                    if (document.visibilityState === 'hidden') {
-                      localStorage.setItem('palmpay_pending_inapp_alert', JSON.stringify(alertData));
-                    } else {
-                      setActiveFlashAlert(alertData);
-                    }
+                playFlashChime(isCredit ? 'credit' : 'debit');
+                triggerHaptic();
 
-                    playFlashChime(isCredit ? 'credit' : 'debit');
-                    triggerHaptic();
-
-                    sendOutsideAppNotification(alertData, () => {
-                      setSelectedTransaction({
-                        ...data,
-                        id: change.doc.id,
-                      });
-                    });
-                  }
+                sendOutsideAppNotification(alertData, () => {
+                  setSelectedTransaction(parseTx(change.doc.id, data));
                 });
               }
+            });
 
-              isInitialLoadRef.current = false;
-              // Never merge foreign transactions; strictly set this user's live data
-              setTransactions(liveData);
-            } else {
-              setTransactions([]);
-            }
+            isInitialLoadRef.current = false;
+            syncCombinedTransactions();
           },
           (err) => {
-            console.warn('Transactions snapshot error:', err);
+            console.warn('Subcollection transactions snapshot error:', err);
+          }
+        );
+
+        // 3. Sync Root /transactions collection where userId matches
+        const rootTxQuery = query(collection(db, 'transactions'), where('userId', '==', userPhone));
+        const unsubRootTx = onSnapshot(
+          rootTxQuery,
+          (snapshot) => {
+            snapshot.docs.forEach((d) => {
+              rootMap.set(d.id, parseTx(d.id, d.data()));
+            });
+            snapshot.docChanges().forEach((change) => {
+              if (change.type === 'removed') {
+                rootMap.delete(change.doc.id);
+              }
+            });
+            syncCombinedTransactions();
+          },
+          (err) => {
+            console.warn('Root transactions snapshot error:', err);
           }
         );
 
         return () => {
           unsubUser();
-          unsubTx();
+          unsubSubTx();
+          unsubRootTx();
         };
       } catch (e) {
         console.warn('Firebase init warning:', e);
@@ -320,27 +364,65 @@ export default function App() {
     sendOutsideAppNotification(alertData, () => setSelectedTransaction(tx));
   };
 
-  const handleAddTransaction = (newTx: any) => {
+  const handleAddTransaction = async (newTx: any) => {
+    const txId = newTx.id || `tx-${Date.now()}`;
+    const now = new Date();
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
+    const month = months[now.getMonth()];
+    const dateFormatted = `${month} ${now.getDate()}, ${now.getFullYear()} ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+
+    const isCredit = newTx.type === 'credit';
+    const numAmt = Math.abs(Number(newTx.amount) || 0);
+
     const formattedItem: TransactionItem = {
-      id: newTx.id || `tx-${Date.now()}`,
-      title: newTx.title || (newTx.type === 'credit' ? `Received from ${newTx.senderName || 'PEACE DANLAMI'}` : `Send - ${newTx.recipient || 'Recipient'}`),
+      id: txId,
+      title: newTx.title || (isCredit ? `Received from ${newTx.senderName || 'PalmPay User'}` : `Send - ${newTx.recipient || 'Recipient'}`),
       recipient: newTx.recipient,
       senderName: newTx.senderName,
-      senderBank: newTx.senderBank,
-      amount: newTx.amount,
-      formattedAmount: newTx.formattedAmount || `${newTx.type === 'credit' ? '+' : '-'}₦${Number(newTx.amount).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`,
-      type: newTx.type || 'transfer',
-      date: newTx.date || 'Sep 29, 2026 ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      month: 'Sep',
+      senderBank: newTx.senderBank || 'PalmPay',
+      amount: numAmt,
+      formattedAmount: newTx.formattedAmount || `${isCredit ? '+' : '-'}₦${numAmt.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`,
+      type: newTx.type || (isCredit ? 'credit' : 'transfer'),
+      date: newTx.date || dateFormatted,
+      month: newTx.month || month,
       category: newTx.category || 'transfer',
-      status: 'successful',
+      status: newTx.status || 'successful',
       narration: newTx.narration,
-      reference: newTx.reference,
-      sessionId: newTx.sessionId,
-      accountNumber: newTx.accountNumber,
+      reference: newTx.reference || txId,
+      sessionId: newTx.sessionId || txId,
+      accountNumber: newTx.accountNumber || userProfile.accountNumber,
+      userId: userProfile.phoneNumber,
+      rawTimestamp: Date.now() / 1000,
     };
 
-    setTransactions((prev) => [formattedItem, ...prev]);
+    // Save to Firestore subcollection and root collection if userId is present
+    const userId = userProfile.phoneNumber;
+    if (userId) {
+      try {
+        const userRef = doc(db, 'users', userId);
+        const subTxRef = doc(collection(userRef, 'transactions'), txId);
+        const rootTxRef = doc(db, 'transactions', txId);
+
+        const record = {
+          ...formattedItem,
+          userId,
+          timestamp: serverTimestamp(),
+          createdAt: serverTimestamp(),
+        };
+
+        await setDoc(subTxRef, record, { merge: true });
+        await setDoc(rootTxRef, record, { merge: true });
+      } catch (err) {
+        console.warn('handleAddTransaction Firestore write warning:', err);
+      }
+    }
+
+    setTransactions((prev) => {
+      const exists = prev.some((t) => t.id === formattedItem.id || (formattedItem.reference && t.reference === formattedItem.reference));
+      if (exists) return prev;
+      return [formattedItem, ...prev];
+    });
+
     triggerManualFlashAlert(formattedItem);
   };
 
@@ -358,19 +440,37 @@ export default function App() {
     });
   };
 
-  const handleConfirmBonus = () => {
+  const handleConfirmBonus = async () => {
     if (claimModalData) {
       const bonus = claimModalData.bonus;
-      setBalance((prev) => prev + bonus);
-      handleAddTransaction({
+      const tx = {
         id: `bonus-${Date.now()}`,
         title: claimModalData.title,
         amount: bonus,
         formattedAmount: `+${formatNaira(bonus)}`,
-        type: 'credit',
+        type: 'credit' as const,
         senderName: 'PALMPAY BONUS',
-        category: 'other',
-      });
+        category: 'other' as const,
+      };
+
+      const userId = userProfile.phoneNumber;
+      if (userId) {
+        try {
+          const userRef = doc(db, 'users', userId);
+          await addDoc(collection(userRef, 'transactions'), {
+            ...tx,
+            status: 'successful',
+            date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            timestamp: serverTimestamp(),
+          });
+          await setDoc(userRef, { balance: increment(bonus) }, { merge: true });
+        } catch (err) {
+          console.warn('Bonus Firestore sync error:', err);
+        }
+      }
+
+      setBalance((prev) => prev + bonus);
+      handleAddTransaction(tx);
       setClaimModalData(null);
     }
   };
@@ -423,10 +523,10 @@ export default function App() {
                 const userDocId = snap.id;
                 const safePhone = data.phoneNumber || userDocId;
                 const safeAcc = normalizePalmPayAccountNumber(data.accountNumber || safePhone);
+                const userBal = typeof data.balance === 'number' ? data.balance : Number(data.balance) || 0;
 
                 // Isolate session: clear prior state completely
                 isInitialLoadRef.current = true;
-                setTransactions([]);
                 setUserProfile({
                   fullName: data.fullName || '',
                   userName: data.userName || data.fullName?.split(' ')[0] || 'User',
@@ -434,9 +534,70 @@ export default function App() {
                   accountNumber: safeAcc,
                   pin: data.pin || '',
                   imageUrl: data.imageUrl || '',
-                  balance: data.balance ?? 0,
+                  balance: userBal,
                 });
-                setBalance(data.balance ?? 0);
+                setBalance(userBal);
+
+                // Immediately load transactions from Firestore (subcollection & root)
+                try {
+                  const txMap = new Map<string, TransactionItem>();
+
+                  const parseLoginTx = (id: string, tData: any): TransactionItem => {
+                    const isCredit = tData.type === 'credit' || (typeof tData.amount === 'number' && tData.amount > 0 && tData.type !== 'transfer' && tData.type !== 'bill' && tData.type !== 'airtime' && tData.type !== 'data' && tData.type !== 'electricity' && tData.type !== 'betting');
+                    const numAmt = Math.abs(Number(tData.amount) || 0);
+                    const formatted = tData.formattedAmount || `${isCredit ? '+' : '-'}₦${numAmt.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
+                    const rawDate = tData.date || (tData.createdAt?.seconds ? new Date(tData.createdAt.seconds * 1000).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : (tData.timestamp?.seconds ? new Date(tData.timestamp.seconds * 1000).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Just now'));
+                    
+                    let mName = tData.month;
+                    if (!mName && rawDate) {
+                      const parts = rawDate.split(' ');
+                      if (parts.length > 0 && parts[0].length >= 3) {
+                        mName = parts[0].slice(0, 3);
+                      }
+                    }
+
+                    const rawTimestamp = tData.timestamp?.seconds || tData.createdAt?.seconds || (typeof tData.timestamp === 'number' ? tData.timestamp : (typeof tData.rawTimestamp === 'number' ? tData.rawTimestamp : Date.now() / 1000));
+
+                    return {
+                      ...tData,
+                      id: id || tData.reference || `tx-${Date.now()}`,
+                      title: tData.title || (isCredit ? `Received from ${tData.senderName || 'PalmPay'}` : `Send - ${tData.recipient || 'Recipient'}`),
+                      recipient: tData.recipient,
+                      senderName: tData.senderName,
+                      senderBank: tData.senderBank,
+                      amount: numAmt,
+                      formattedAmount: formatted,
+                      type: tData.type || (isCredit ? 'credit' : 'transfer'),
+                      date: rawDate,
+                      month: mName || 'Recent',
+                      category: tData.category || 'transfer',
+                      status: (tData.status === 'failed' ? 'failed' : tData.status === 'pending' ? 'pending' : 'successful') as 'failed' | 'pending' | 'successful',
+                      narration: tData.narration,
+                      reference: tData.reference || id,
+                      sessionId: tData.sessionId || tData.reference || id,
+                      accountNumber: tData.accountNumber || safeAcc,
+                      rawTimestamp,
+                    };
+                  };
+
+                  // 1. Load subcollection transactions
+                  const txSnap = await getDocs(collection(db, 'users', userDocId, 'transactions'));
+                  txSnap.docs.forEach((d) => {
+                    txMap.set(d.id, parseLoginTx(d.id, d.data()));
+                  });
+
+                  // 2. Load root collection transactions
+                  const rootSnap = await getDocs(query(collection(db, 'transactions'), where('userId', '==', userDocId)));
+                  rootSnap.docs.forEach((d) => {
+                    txMap.set(d.id, parseLoginTx(d.id, d.data()));
+                  });
+
+                  const combinedList = Array.from(txMap.values());
+                  combinedList.sort((a, b) => (b.rawTimestamp || 0) - (a.rawTimestamp || 0));
+                  setTransactions(combinedList);
+                } catch (txErr) {
+                  console.warn('Initial tx load error:', txErr);
+                }
               } else {
                 alert('This account is not registered. Please tap the back arrow to Open an Account (Sign Up).');
                 return;
@@ -569,15 +730,34 @@ export default function App() {
             {activeTab === 'loan' && (
               <LoanPage
                 balance={balance}
-                onApplySuccess={(amount) => {
-                  setBalance((prev) => prev + amount);
-                  handleAddTransaction({
+                onApplySuccess={async (amount) => {
+                  const tx = {
                     title: 'Flexi-Cash Loan Disbursement',
                     amount,
                     formattedAmount: `+${amount.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`,
-                    type: 'credit',
-                    category: 'transfer',
-                  });
+                    type: 'credit' as const,
+                    category: 'transfer' as const,
+                    senderName: 'PalmPay Flexi-Cash',
+                  };
+
+                  const userId = userProfile.phoneNumber;
+                  if (userId) {
+                    try {
+                      const userRef = doc(db, 'users', userId);
+                      await addDoc(collection(userRef, 'transactions'), {
+                        ...tx,
+                        status: 'successful',
+                        date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                        timestamp: serverTimestamp(),
+                      });
+                      await setDoc(userRef, { balance: increment(amount) }, { merge: true });
+                    } catch (err) {
+                      console.warn('Loan Firestore sync error:', err);
+                    }
+                  }
+
+                  setBalance((prev) => prev + amount);
+                  handleAddTransaction(tx);
                   alert(`₦${amount.toLocaleString()} has been disbursed to your Available Balance!`);
                   setActiveTab('home');
                 }}
@@ -588,31 +768,69 @@ export default function App() {
               <WealthPage
                 balance={balance}
                 userProfile={userProfile}
-                onDepositSuccess={(amt) => {
-                  setBalance((prev) => prev - amt);
-                  handleAddTransaction({
+                onDepositSuccess={async (amt) => {
+                  const tx = {
                     title: 'Deposit to Prime Wealth Savings',
                     amount: amt,
                     formattedAmount: `-${amt.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`,
-                    type: 'transfer',
-                    category: 'cashbox',
-                  });
+                    type: 'transfer' as const,
+                    category: 'cashbox' as const,
+                    recipient: 'Prime Wealth Savings',
+                  };
+
+                  const userId = userProfile.phoneNumber;
+                  if (userId) {
+                    try {
+                      const userRef = doc(db, 'users', userId);
+                      await addDoc(collection(userRef, 'transactions'), {
+                        ...tx,
+                        status: 'successful',
+                        date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                        timestamp: serverTimestamp(),
+                      });
+                      await setDoc(userRef, { balance: increment(-amt) }, { merge: true });
+                    } catch (err) {
+                      console.warn('Wealth deposit Firestore sync error:', err);
+                    }
+                  }
+
+                  setBalance((prev) => prev - amt);
+                  handleAddTransaction(tx);
                 }}
               />
             )}
 
             {activeTab === 'reward' && (
               <RewardPage
-                onClaimVoucher={(title, val) => {
+                onClaimVoucher={async (title, val) => {
                   if (val > 0) {
-                    setBalance((prev) => prev + val);
-                    handleAddTransaction({
+                    const tx = {
                       title: `Reward Claim: ${title}`,
                       amount: val,
                       formattedAmount: `+${val.toFixed(2)}`,
-                      type: 'credit',
-                      category: 'other',
-                    });
+                      type: 'credit' as const,
+                      category: 'other' as const,
+                      senderName: 'PalmPay Reward Voucher',
+                    };
+
+                    const userId = userProfile.phoneNumber;
+                    if (userId) {
+                      try {
+                        const userRef = doc(db, 'users', userId);
+                        await addDoc(collection(userRef, 'transactions'), {
+                          ...tx,
+                          status: 'successful',
+                          date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                          timestamp: serverTimestamp(),
+                        });
+                        await setDoc(userRef, { balance: increment(val) }, { merge: true });
+                      } catch (err) {
+                        console.warn('Reward Firestore sync error:', err);
+                      }
+                    }
+
+                    setBalance((prev) => prev + val);
+                    handleAddTransaction(tx);
                   }
                 }}
               />

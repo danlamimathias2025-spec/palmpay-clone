@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Check, Landmark, ShieldCheck, ArrowRight } from 'lucide-react';
 import { db } from '../lib/firebase';
-import { doc, addDoc, collection, updateDoc, increment, serverTimestamp, getDoc } from 'firebase/firestore';
+import { doc, addDoc, collection, setDoc, updateDoc, increment, serverTimestamp, getDoc } from 'firebase/firestore';
 import { formatNaira } from '../utils/format';
 import LoadingExecutionOverlay from './LoadingExecutionOverlay';
 
@@ -149,9 +149,7 @@ export default function TransferModal({
             ...newTx,
             timestamp: serverTimestamp(),
           });
-          await updateDoc(userRef, {
-            balance: increment(-amount),
-          });
+          await setDoc(userRef, { balance: increment(-amount) }, { merge: true });
 
           // If recipient is PalmPay, credit recipient in Firestore
           const isPalmPay = (formData.bankName || '').toLowerCase().includes('palmpay') || formData.bankCode === '999991';
@@ -174,9 +172,7 @@ export default function TransferModal({
                   status: 'successful',
                   timestamp: serverTimestamp(),
                 });
-                await updateDoc(recRef, {
-                  balance: increment(amount),
-                });
+                await setDoc(recRef, { balance: increment(amount) }, { merge: true });
                 break;
               }
             }

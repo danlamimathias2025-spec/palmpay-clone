@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, Check, Copy, ChevronRight, Headphones, Landmark, ArrowLeft, ArrowDownToLine, Sparkles, User, Building2, HelpCircle, Phone, ArrowLeftRight, CreditCard, Banknote } from 'lucide-react';
 import { db } from '../lib/firebase';
-import { doc, addDoc, collection, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
+import { doc, addDoc, collection, setDoc, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
 import { normalizePalmPayAccountNumber } from '../utils/account';
 import { formatNaira } from '../utils/format';
 import LoadingExecutionOverlay from './LoadingExecutionOverlay';
@@ -104,9 +104,7 @@ export default function AddFundsModal({
           ...newTransaction,
           timestamp: serverTimestamp(),
         });
-        await updateDoc(userRef, {
-          balance: increment(num),
-        });
+        await setDoc(userRef, { balance: increment(num) }, { merge: true });
       }
     } catch (err) {
       console.warn('Firestore fallback sync:', err);

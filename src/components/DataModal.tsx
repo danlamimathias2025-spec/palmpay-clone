@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, ArrowDownUp, Check, Sparkles } from 'lucide-react';
 import { db } from '../lib/firebase';
-import { doc, collection, addDoc, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
+import { doc, collection, addDoc, setDoc, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
 import { formatNaira } from '../utils/format';
 import LoadingExecutionOverlay from './LoadingExecutionOverlay';
 
@@ -65,9 +65,7 @@ export default function DataModal({
             ...newTx,
             timestamp: serverTimestamp(),
           });
-          await updateDoc(userRef, {
-            balance: increment(-selectedPlan.price),
-          });
+          await setDoc(userRef, { balance: increment(-selectedPlan.price) }, { merge: true });
         } catch (err) {
           console.warn('Firestore fallback sync:', err);
         }

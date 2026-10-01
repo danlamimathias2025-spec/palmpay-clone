@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Zap, Check, Copy, Loader2 } from 'lucide-react';
 import { db } from '../../lib/firebase';
 import { doc, collection, addDoc, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
+import LoadingExecutionOverlay from '../LoadingExecutionOverlay';
 
 interface ElectricityModalProps {
   balance: number;
@@ -175,6 +176,15 @@ export default function ElectricityModal({ balance, setBalance, userProfile, onC
             {isProcessing ? 'Generating Token...' : `Buy Power (₦${amount})`}
           </button>
         </form>
+
+        {isProcessing && (
+          <LoadingExecutionOverlay
+            title="Recharging Electricity Meter..."
+            subtitle={`Generating prepaid recharge token for meter ${meterNumber || '0129482910'} on ${disco}.`}
+            amount={Number(amount) || undefined}
+            variant="emerald"
+          />
+        )}
       </div>
     </div>
   );

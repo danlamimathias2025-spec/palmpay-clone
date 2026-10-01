@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Trophy, Check, Loader2 } from 'lucide-react';
 import { db } from '../../lib/firebase';
 import { doc, collection, addDoc, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
+import LoadingExecutionOverlay from '../LoadingExecutionOverlay';
 
 interface BettingModalProps {
   balance: number;
@@ -164,6 +165,15 @@ export default function BettingModal({ balance, setBalance, userProfile, onClose
             {isProcessing ? 'Funding...' : `Fund ${platform} (₦${amount})`}
           </button>
         </form>
+
+        {isProcessing && (
+          <LoadingExecutionOverlay
+            title="Funding Betting Wallet..."
+            subtitle={`Crediting ${platform} user account ${customerId}. Generating instant reference.`}
+            amount={Number(amount) || undefined}
+            variant="purple"
+          />
+        )}
       </div>
     </div>
   );

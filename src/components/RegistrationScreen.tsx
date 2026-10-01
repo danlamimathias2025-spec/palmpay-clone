@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ChevronDown, Headphones, ArrowLeft, Eye, EyeOff, Shield, Gift, Check, X, User, Edit } from 'lucide-react';
 import { generatePalmPayAccountNumber } from '../utils/account';
+import LoadingExecutionOverlay from './LoadingExecutionOverlay';
 
 export default function RegistrationScreen({
   onRegister,
@@ -407,6 +408,15 @@ export default function RegistrationScreen({
           </button>
         </div>
       </div>
+
+      {/* Loading State Overlay during Account Registration */}
+      {loading && (
+        <LoadingExecutionOverlay
+          title="Creating PalmPay Account..."
+          subtitle="Provisioning your unique 10-digit account number and isolating your secure wallet."
+          variant="purple"
+        />
+      )}
     </div>
   );
 }

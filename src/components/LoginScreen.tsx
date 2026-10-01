@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronDown, Headphones, ArrowLeft, Eye, EyeOff, Check, X, Shield, Gift } from 'lucide-react';
 import { generatePalmPayAccountNumber } from '../utils/account';
+import LoadingExecutionOverlay from './LoadingExecutionOverlay';
 
 export default function LoginScreen({
   onLogin,
@@ -348,6 +349,15 @@ export default function LoginScreen({
           </button>
         </div>
       </div>
+
+      {/* Loading State Overlay during Authentication */}
+      {loading && (
+        <LoadingExecutionOverlay
+          title="Authenticating Session..."
+          subtitle="Verifying your 6-digit credentials and securing your financial session."
+          variant="purple"
+        />
+      )}
     </div>
   );
 }

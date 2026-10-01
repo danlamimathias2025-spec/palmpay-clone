@@ -3,6 +3,7 @@ import { X, ArrowDownUp, Check, Sparkles } from 'lucide-react';
 import { db } from '../lib/firebase';
 import { doc, collection, addDoc, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
 import { formatNaira } from '../utils/format';
+import LoadingExecutionOverlay from './LoadingExecutionOverlay';
 
 interface DataModalProps {
   balance: number;
@@ -202,6 +203,15 @@ export default function DataModal({
             {isProcessing ? 'Activating...' : `Pay ₦${selectedPlan.price} (Bal: ${formatNaira(balance)})`}
           </button>
         </form>
+
+        {isProcessing && (
+          <LoadingExecutionOverlay
+            title="Activating Data Plan..."
+            subtitle={`Provisioning ${selectedPlan.plan} for ${phoneNumber} on ${network}.`}
+            amount={selectedPlan.price}
+            variant="purple"
+          />
+        )}
       </div>
     </div>
   );

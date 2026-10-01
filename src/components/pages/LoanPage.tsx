@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Landmark, ShieldCheck, CheckCircle2, ChevronRight, Calculator, AlertCircle } from 'lucide-react';
 import { useOrientation } from '../../hooks/useOrientation';
+import LoadingExecutionOverlay from '../LoadingExecutionOverlay';
 
 interface LoanPageProps {
   balance: number;
@@ -347,6 +348,15 @@ export default function LoanPage({ onApplySuccess }: LoanPageProps) {
             </div>
           </div>
         </div>
+      )}
+
+      {isApplying && (
+        <LoadingExecutionOverlay
+          title="Disbursing Flexi-Cash Loan..."
+          subtitle={`Instant automated credit check & direct disbursement to your PalmPay available balance.`}
+          amount={loanAmount}
+          variant="purple"
+        />
       )}
     </div>
   );

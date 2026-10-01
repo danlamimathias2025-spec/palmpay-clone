@@ -3,6 +3,7 @@ import { X, Check, ShieldCheck, Loader2, Send, ArrowRight, UserCheck } from 'luc
 import { db } from '../../lib/firebase';
 import { doc, getDoc, collection, addDoc, updateDoc, increment, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
 import { normalizePalmPayAccountNumber } from '../../utils/account';
+import LoadingExecutionOverlay from '../LoadingExecutionOverlay';
 
 interface ToPalmPayModalProps {
   balance: number;
@@ -411,6 +412,15 @@ export default function ToPalmPayModal({
             )}
           </button>
         </form>
+
+        {loading && (
+          <LoadingExecutionOverlay
+            title="Processing PalmPay Transfer..."
+            subtitle={`Transferring funds instantly to ${recipientName || recipientInput}. Beneficiary account is being credited.`}
+            amount={Number(amount) || undefined}
+            variant="purple"
+          />
+        )}
       </div>
     </div>
   );

@@ -1,27 +1,35 @@
 import React, { useState } from 'react';
 import { TrendingUp, ShieldCheck, ChevronRight, Lock, Users, Sparkles, PlusCircle } from 'lucide-react';
 import { formatNaira } from '../../utils/format';
+import LoadingExecutionOverlay from '../LoadingExecutionOverlay';
 
 interface WealthPageProps {
   balance: number;
+  userProfile?: { phoneNumber?: string; fullName?: string };
   onDepositSuccess: (amount: number) => void;
 }
 
-export default function WealthPage({ balance, onDepositSuccess }: WealthPageProps) {
+export default function WealthPage({ balance, userProfile, onDepositSuccess }: WealthPageProps) {
+  const savingsKey = userProfile?.phoneNumber ? `palmpay_savings_${userProfile.phoneNumber}` : 'palmpay_savings_default';
   const [savingsBalance, setSavingsBalance] = useState(() => {
-    return Number(localStorage.getItem('palmpay_savings_balance') || 0);
+    return Number(localStorage.getItem(savingsKey) || 0);
   });
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [depositAmount, setDepositAmount] = useState('1000');
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const handleDeposit = () => {
     const amt = Number(depositAmount);
     if (amt > 0 && amt <= balance) {
-      const nextBal = savingsBalance + amt;
-      setSavingsBalance(nextBal);
-      localStorage.setItem('palmpay_savings_balance', nextBal.toString());
-      onDepositSuccess(amt);
-      setShowDepositModal(false);
+      setIsProcessing(true);
+      setTimeout(() => {
+        const nextBal = savingsBalance + amt;
+        setSavingsBalance(nextBal);
+        localStorage.setItem(savingsKey, nextBal.toString());
+        onDepositSuccess(amt);
+        setIsProcessing(false);
+        setShowDepositModal(false);
+      }, 1000);
     } else {
       alert("Insufficient balance or invalid amount.");
     }
@@ -187,13 +195,23 @@ export default function WealthPage({ balance, onDepositSuccess }: WealthPageProp
               </button>
               <button
                 onClick={handleDeposit}
-                className="flex-1 py-2.5 rounded-xl bg-[#7846f7] hover:bg-[#6836ea] text-white text-xs font-bold shadow-md"
+                disabled={isProcessing}
+                className="flex-1 py-2.5 rounded-xl bg-[#7846f7] hover:bg-[#6836ea] text-white text-xs font-bold shadow-md disabled:opacity-50"
               >
-                Deposit Now
+                {isProcessing ? 'Depositing...' : 'Deposit Now'}
               </button>
             </div>
           </div>
         </div>
+      )}
+
+      {isProcessing && (
+        <LoadingExecutionOverlay
+          title="Depositing to Wealth Vault..."
+          subtitle={`Allocating ₦${Number(depositAmount).toLocaleString('en-NG', { minimumFractionDigits: 2 })} into your high-yield PalmPay savings account.`}
+          amount={Number(depositAmount) || undefined}
+          variant="purple"
+        />
       )}
     </div>
   );

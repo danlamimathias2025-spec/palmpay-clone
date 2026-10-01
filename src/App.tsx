@@ -587,6 +587,7 @@ export default function App() {
             {activeTab === 'wealth' && (
               <WealthPage
                 balance={balance}
+                userProfile={userProfile}
                 onDepositSuccess={(amt) => {
                   setBalance((prev) => prev - amt);
                   handleAddTransaction({

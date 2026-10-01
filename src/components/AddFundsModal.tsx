@@ -4,6 +4,7 @@ import { db } from '../lib/firebase';
 import { doc, addDoc, collection, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
 import { normalizePalmPayAccountNumber } from '../utils/account';
 import { formatNaira } from '../utils/format';
+import LoadingExecutionOverlay from './LoadingExecutionOverlay';
 
 interface AddFundsModalProps {
   balance: number;
@@ -80,7 +81,7 @@ export default function AddFundsModal({
     const newTransaction = {
       id: `recv-${Date.now()}`,
       title: `Received from ${cleanSender}`,
-      recipient: userProfile.fullName || 'Mathias Danlami',
+      recipient: userProfile.fullName || userProfile.userName || 'PalmPay User',
       senderName: cleanSender,
       senderBank: senderBank,
       amount: num,
@@ -519,6 +520,15 @@ export default function AddFundsModal({
             Close
           </button>
         </div>
+
+        {isProcessing && (
+          <LoadingExecutionOverlay
+            title="Processing Deposit..."
+            subtitle={`Crediting ₦${Number(amount).toLocaleString('en-NG', { minimumFractionDigits: 2 })} directly to your 10-digit PalmPay account.`}
+            amount={Number(amount) || undefined}
+            variant="emerald"
+          />
+        )}
       </div>
     </div>
   );

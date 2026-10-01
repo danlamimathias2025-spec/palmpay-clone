@@ -3,6 +3,7 @@ import { X, Check, Landmark, ShieldCheck, ArrowRight } from 'lucide-react';
 import { db } from '../lib/firebase';
 import { doc, addDoc, collection, updateDoc, increment, serverTimestamp, getDoc } from 'firebase/firestore';
 import { formatNaira } from '../utils/format';
+import LoadingExecutionOverlay from './LoadingExecutionOverlay';
 
 interface TransferModalProps {
   balance: number;
@@ -353,6 +354,15 @@ export default function TransferModal({
             {loading ? 'Processing Transfer...' : 'Send Money (₦0 Fee)'}
           </button>
         </form>
+
+        {loading && (
+          <LoadingExecutionOverlay
+            title="Processing Bank Transfer..."
+            subtitle={`Transferring funds to ${formData.accountName || formData.accountNumber} at ${formData.bankName}. Connecting securely to NIBSS.`}
+            amount={Number(formData.amount) || undefined}
+            variant="purple"
+          />
+        )}
       </div>
     </div>
   );

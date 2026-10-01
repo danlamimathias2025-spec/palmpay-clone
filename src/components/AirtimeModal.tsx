@@ -3,6 +3,7 @@ import { X, Smartphone, Check, Sparkles } from 'lucide-react';
 import { db } from '../lib/firebase';
 import { doc, collection, addDoc, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
 import { formatNaira } from '../utils/format';
+import LoadingExecutionOverlay from './LoadingExecutionOverlay';
 
 interface AirtimeModalProps {
   balance: number;
@@ -219,6 +220,15 @@ export default function AirtimeModal({
             {isProcessing ? 'Recharging...' : `Pay ₦${amount} with 3% Cashback`}
           </button>
         </form>
+
+        {isProcessing && (
+          <LoadingExecutionOverlay
+            title="Processing Airtime Top-Up..."
+            subtitle={`Recharging ${network} airtime for ${phoneNumber}. Connecting to telecom provider.`}
+            amount={Number(amount) || undefined}
+            variant="purple"
+          />
+        )}
       </div>
     </div>
   );

@@ -74,19 +74,6 @@ export default function AccountCard({ balance, accountNumber, onAddMoney, onView
               Add Money
             </button>
           </div>
-
-          {/* 10-Digit Unique Funds ID Badge */}
-          <div className="flex items-center gap-1.5 mt-1.5">
-            <div
-              onClick={handleCopy}
-              className="inline-flex items-center gap-1.5 bg-black/30 hover:bg-black/45 px-2.5 py-1 rounded-full text-[11px] text-white/90 border border-white/10 cursor-pointer active:scale-95 transition-all shadow-sm"
-              title="Click to copy 10-digit Funds ID for receiving deposits"
-            >
-              <span className="text-[10px] text-purple-200 uppercase font-semibold">Funds ID:</span>
-              <span className="font-mono font-bold text-emerald-400 tracking-wider">{accountNum}</span>
-              {copied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} className="text-white/70" />}
-            </div>
-          </div>
         </div>
 
         {/* Bottom Sub-strip: Yesterday's Earnings */}

@@ -1,13 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronDown, Headphones, ArrowLeft, Eye, EyeOff, Check, X, Shield, Gift } from 'lucide-react';
+import { ChevronDown, Headphones, ArrowLeft, Eye, EyeOff, Check, X, Shield, Gift, Fingerprint, ScanFace } from 'lucide-react';
 import { generatePalmPayAccountNumber } from '../utils/account';
+import { hasSavedBiometrics, getBiometricSettings } from '../utils/webauthn';
+import BiometricAuthOverlay from './BiometricAuthOverlay';
 import LoadingExecutionOverlay from './LoadingExecutionOverlay';
 
 export default function LoginScreen({
   onLogin,
+  onBiometricLogin,
   onSwitchToRegister,
 }: {
-  onLogin: (phone: string, password: string) => void;
+  onLogin: (phone: string, password: string) => Promise<void> | void;
+  onBiometricLogin?: (phone: string) => Promise<void> | void;
   onSwitchToRegister: () => void;
 }) {
   // Step State: 'phone' or 'password'
@@ -18,6 +22,7 @@ export default function LoginScreen({
   const [showInvitation, setShowInvitation] = useState(false);
   const [invitationCode, setInvitationCode] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showBiometricModal, setShowBiometricModal] = useState(false);
 
   // Skip step 1 if the user logged in within the fast-path duration window (24h default vs 60s optional settings)
   useEffect(() => {
@@ -190,7 +195,7 @@ export default function LoginScreen({
             </div>
 
             {/* Next / Sign Up Button Row */}
-            <div className="relative w-full">
+            <div className="relative w-full space-y-2">
               {/* Floating Free Airtime Yellow Banner Bubble */}
               <div className="absolute -top-3.5 right-0.5 z-10 flex items-center gap-1.5 bg-[#fff8e1] border border-[#ffe082] text-[#f57f17] text-[10px] font-black px-2 py-1 rounded-xl shadow-md select-none transform hover:scale-105 transition-all">
                 <Gift size={11} className="text-[#f57f17] shrink-0" />
@@ -202,8 +207,20 @@ export default function LoginScreen({
                 onClick={handleNextStep}
                 className="w-full py-4 rounded-2xl bg-[#7c1cf5] hover:bg-[#6813d1] text-white font-extrabold text-sm active:scale-95 transition-all shadow-lg flex items-center justify-center gap-1.5 mt-2.5 font-sans"
               >
-                <span>Sign Up</span>
+                <span>Sign Up / Next</span>
               </button>
+
+              {/* Fast Biometric Login Button */}
+              {phoneNumber.length >= 10 && (
+                <button
+                  type="button"
+                  onClick={() => setShowBiometricModal(true)}
+                  className="w-full py-3 rounded-2xl bg-white/[0.06] hover:bg-white/[0.1] border border-purple-500/30 text-purple-200 font-bold text-xs flex items-center justify-center gap-2 active:scale-95 transition-all shadow-md"
+                >
+                  <Fingerprint size={16} className="text-purple-400" />
+                  <span>Fast Biometric Login (Touch ID / Face ID)</span>
+                </button>
+              )}
             </div>
 
             {/* Invitation Code dropdown block */}
@@ -281,6 +298,16 @@ export default function LoginScreen({
               )}
             </button>
 
+            {/* Quick Biometrics Passkey Login Button */}
+            <button
+              type="button"
+              onClick={() => setShowBiometricModal(true)}
+              className="w-full py-3 rounded-2xl bg-white/[0.06] hover:bg-white/[0.1] border border-purple-500/30 text-purple-200 font-bold text-xs flex items-center justify-center gap-2 active:scale-95 transition-all shadow-md"
+            >
+              <Fingerprint size={16} className="text-purple-400" />
+              <span>Log in with Biometrics (Touch ID / Face ID)</span>
+            </button>
+
             {/* Toggle back to phone */}
             <button
               onClick={() => setStep('phone')}
@@ -356,6 +383,30 @@ export default function LoginScreen({
           title="Authenticating Session..."
           subtitle="Verifying your 6-digit credentials and securing your financial session."
           variant="purple"
+        />
+      )}
+
+      {/* WebAuthn Biometric Authentication Modal */}
+      {showBiometricModal && (
+        <BiometricAuthOverlay
+          userId={phoneNumber}
+          userName={phoneNumber || 'PalmPay User'}
+          mode="login"
+          onSuccess={async () => {
+            setShowBiometricModal(false);
+            setLoading(true);
+            try {
+              if (onBiometricLogin) {
+                await onBiometricLogin(phoneNumber);
+              } else {
+                await onLogin(phoneNumber, '__biometric_authenticated__');
+              }
+            } finally {
+              setLoading(false);
+            }
+          }}
+          onCancel={() => setShowBiometricModal(false)}
+          onFallbackToPin={() => setShowBiometricModal(false)}
         />
       )}
     </div>

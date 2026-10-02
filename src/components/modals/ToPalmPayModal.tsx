@@ -4,6 +4,8 @@ import { db } from '../../lib/firebase';
 import { doc, getDoc, collection, addDoc, setDoc, updateDoc, increment, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
 import { normalizePalmPayAccountNumber } from '../../utils/account';
 import { generatePalmPayTransactionId, generatePalmPaySessionId, generatePalmPayRemark } from '../../utils/transactionFormat';
+import { isHighValueTransaction } from '../../utils/webauthn';
+import BiometricAuthOverlay from '../BiometricAuthOverlay';
 import LoadingExecutionOverlay from '../LoadingExecutionOverlay';
 
 interface ToPalmPayModalProps {
@@ -30,6 +32,7 @@ export default function ToPalmPayModal({
   const [verifying, setVerifying] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [showBiometricConfirm, setShowBiometricConfirm] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
   // 1. Resolve PalmPay User by Account Number (10 digits) or Phone Number (11 digits)
@@ -146,6 +149,16 @@ export default function ToPalmPayModal({
       return;
     }
 
+    // High-Value Transaction Biometric Challenge
+    if (isHighValueTransaction(num)) {
+      setShowBiometricConfirm(true);
+      return;
+    }
+
+    await executeTransfer(num);
+  };
+
+  const executeTransfer = async (num: number) => {
     setLoading(true);
     try {
       const senderId = userProfile.phoneNumber;
@@ -439,6 +452,29 @@ export default function ToPalmPayModal({
             subtitle={`Transferring funds instantly to ${recipientName || recipientInput}. Beneficiary account is being credited.`}
             amount={Number(amount) || undefined}
             variant="purple"
+          />
+        )}
+
+        {/* High-Value Biometric Authorization Modal */}
+        {showBiometricConfirm && (
+          <BiometricAuthOverlay
+            userId={userProfile.phoneNumber}
+            userName={userProfile.fullName || userProfile.userName || 'PalmPay User'}
+            mode="transaction"
+            transactionContext={{
+              amount: Number(amount),
+              recipient: recipientName || recipientInput,
+              type: 'PalmPay Transfer',
+            }}
+            onSuccess={() => {
+              setShowBiometricConfirm(false);
+              executeTransfer(Number(amount));
+            }}
+            onCancel={() => setShowBiometricConfirm(false)}
+            onFallbackToPin={() => {
+              setShowBiometricConfirm(false);
+              executeTransfer(Number(amount));
+            }}
           />
         )}
       </div>

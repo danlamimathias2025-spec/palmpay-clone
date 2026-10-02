@@ -1,6 +1,12 @@
-import React, { useState } from 'react';
-import { X, ShieldCheck, Lock, Smartphone, KeyRound, Check, Fingerprint, ScanFace } from 'lucide-react';
-import { registerBiometrics, verifyBiometrics } from '../../utils/webauthn';
+import React, { useState, useEffect } from 'react';
+import { X, ShieldCheck, Lock, KeyRound, Check, Fingerprint, SlidersHorizontal, CheckCircle2 } from 'lucide-react';
+import { db } from '../../lib/firebase';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import {
+  getBiometricSettings,
+  setBiometricSettings,
+  hasSavedBiometrics,
+} from '../../utils/webauthn';
 
 interface SecurityCenterModalProps {
   onClose: () => void;
@@ -10,45 +16,64 @@ interface SecurityCenterModalProps {
 export default function SecurityCenterModal({ onClose, userProfile }: SecurityCenterModalProps) {
   const [pinChanged, setPinChanged] = useState(false);
   const [newPin, setNewPin] = useState('');
-  const [bioTesting, setBioTesting] = useState(false);
   const [bioMessage, setBioMessage] = useState<string | null>(null);
 
-  const handleUpdatePin = (e: React.FormEvent) => {
+  const initialSettings = getBiometricSettings();
+  const [bioEnabled, setBioEnabled] = useState(initialSettings.enabled);
+  const [threshold, setThreshold] = useState(initialSettings.highValueThreshold);
+
+  const phone = userProfile?.phoneNumber || '08082076038';
+
+  const handleUpdatePin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newPin.length === 4) {
       userProfile.pin = newPin;
+      try {
+        if (phone) {
+          const userRef = doc(db, 'users', phone);
+          await setDoc(userRef, { pin: newPin, updatedAt: serverTimestamp() }, { merge: true });
+        }
+      } catch (err) {
+        console.warn('Real-time PIN sync warning:', err);
+      }
       setPinChanged(true);
       setTimeout(() => setPinChanged(false), 2500);
     }
   };
 
-  const handleTestBiometrics = async () => {
-    setBioTesting(true);
-    setBioMessage(null);
+  const handleToggleBiometrics = async (val: boolean) => {
+    setBioEnabled(val);
+    setBiometricSettings({ enabled: val });
     try {
-      const phone = userProfile?.phoneNumber;
-      if (!phone) {
-        setBioMessage('Please log in first.');
-        return;
+      if (phone) {
+        const userRef = doc(db, 'users', phone);
+        await setDoc(userRef, { biometricsEnabled: val, updatedAt: serverTimestamp() }, { merge: true });
       }
-      await registerBiometrics(phone, userProfile?.fullName || 'PalmPay User');
-      const res = await verifyBiometrics(phone);
-      if (res.success) {
-        setBioMessage('WebAuthn Biometrics verified successfully on this device!');
-      } else {
-        setBioMessage('Biometric verification cancelled or unavailable.');
-      }
-    } catch (e: any) {
-      setBioMessage('Biometrics enabled for quick login.');
-    } finally {
-      setBioTesting(false);
-      setTimeout(() => setBioMessage(null), 3500);
+    } catch (err) {
+      console.warn('Real-time biometric setting sync warning:', err);
     }
+    setBioMessage(val ? 'WebAuthn biometric layer active' : 'Biometric layer disabled');
+    setTimeout(() => setBioMessage(null), 2500);
+  };
+
+  const handleThresholdChange = async (newThresh: number) => {
+    setThreshold(newThresh);
+    setBiometricSettings({ highValueThreshold: newThresh });
+    try {
+      if (phone) {
+        const userRef = doc(db, 'users', phone);
+        await setDoc(userRef, { biometricsThreshold: newThresh, updatedAt: serverTimestamp() }, { merge: true });
+      }
+    } catch (err) {
+      console.warn('Real-time threshold sync warning:', err);
+    }
+    setBioMessage(`Threshold updated: ₦${newThresh.toLocaleString()}`);
+    setTimeout(() => setBioMessage(null), 2500);
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-      <div className="mirror-glass-modal rounded-3xl p-6 w-full max-w-sm relative">
+      <div className="mirror-glass-modal rounded-3xl p-6 w-full max-w-sm relative max-h-[90vh] overflow-y-auto no-scrollbar">
         <button
           onClick={onClose}
           className="absolute top-4 right-4 w-8 h-8 rounded-full mirror-glass flex items-center justify-center text-white/70 hover:text-white"
@@ -67,35 +92,77 @@ export default function SecurityCenterModal({ onClose, userProfile }: SecurityCe
         </div>
 
         <div className="space-y-3 mb-5">
-          <div className="mirror-glass rounded-2xl p-3.5 border border-white/5 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Lock size={18} className="text-purple-400" />
-              <div className="text-xs">
-                <p className="font-bold text-white">Transaction PIN</p>
-                <p className="text-white/50">Required for transfers and airtime</p>
+          {/* Biometrics Toggle & Status */}
+          <div className="mirror-glass rounded-2xl p-3.5 border border-white/5 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center">
+                  <Fingerprint size={18} />
+                </div>
+                <div className="text-xs">
+                  <p className="font-bold text-white">WebAuthn Biometric Security</p>
+                  <p className="text-white/50 text-[10px]">Fingerprint, Face ID & Passkeys</p>
+                </div>
+              </div>
+
+              {/* Toggle switch */}
+              <button
+                type="button"
+                onClick={() => handleToggleBiometrics(!bioEnabled)}
+                className={`w-11 h-6 flex items-center rounded-full p-1 transition-colors ${
+                  bioEnabled ? 'bg-[#7846f7]' : 'bg-white/20'
+                }`}
+                aria-label="Toggle Biometric Security"
+              >
+                <div
+                  className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${
+                    bioEnabled ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {/* Real-time Hardware Status Row */}
+            <div className="flex items-center justify-between pt-1 border-t border-white/5 text-xs">
+              <span className="text-[11px] text-white/60">Hardware Protection:</span>
+              <div className="flex items-center gap-1 text-emerald-400 font-bold text-[11px]">
+                <CheckCircle2 size={13} />
+                <span>{bioEnabled ? 'Active & Enrolled' : 'Standby'}</span>
               </div>
             </div>
-            <span className="text-xs font-bold text-emerald-400">Set</span>
           </div>
 
-          <div
-            onClick={handleTestBiometrics}
-            className="mirror-glass rounded-2xl p-3.5 border border-white/5 flex items-center justify-between hover:bg-white/10 cursor-pointer active:scale-98 transition-all"
-          >
-            <div className="flex items-center gap-3">
-              <Fingerprint size={18} className="text-sky-400" />
-              <div className="text-xs">
-                <p className="font-bold text-white">WebAuthn Biometric Login</p>
-                <p className="text-white/50">Face ID, Fingerprint & Passkeys</p>
-              </div>
+          {/* High-Value Transaction Threshold Setting */}
+          <div className="mirror-glass rounded-2xl p-3.5 border border-white/5 space-y-2.5">
+            <div className="flex items-center gap-2 text-xs">
+              <SlidersHorizontal size={14} className="text-purple-400" />
+              <span className="font-bold text-white">High-Value Confirmation Threshold</span>
             </div>
-            <button
-              type="button"
-              disabled={bioTesting}
-              className="text-xs font-bold bg-sky-500/20 text-sky-300 px-2.5 py-1 rounded-full border border-sky-500/30"
-            >
-              {bioTesting ? 'Testing...' : 'Test / Set'}
-            </button>
+            <p className="text-[10px] text-white/50 leading-relaxed">
+              Require biometric authorization before executing transfers at or above this amount:
+            </p>
+
+            <div className="grid grid-cols-4 gap-1.5 pt-1">
+              {[
+                { label: '₦1,000', val: 1000 },
+                { label: '₦5,000', val: 5000 },
+                { label: '₦10,000', val: 10000 },
+                { label: '₦20,000', val: 20000 },
+              ].map((tier) => (
+                <button
+                  key={tier.val}
+                  type="button"
+                  onClick={() => handleThresholdChange(tier.val)}
+                  className={`py-1.5 px-1 rounded-xl text-[10px] font-bold transition-all ${
+                    threshold === tier.val
+                      ? 'bg-[#7846f7] text-white shadow-md'
+                      : 'bg-white/5 text-white/60 hover:text-white border border-white/5'
+                  }`}
+                >
+                  {tier.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {bioMessage && (
@@ -105,12 +172,25 @@ export default function SecurityCenterModal({ onClose, userProfile }: SecurityCe
             </div>
           )}
 
+          {/* Transaction PIN */}
+          <div className="mirror-glass rounded-2xl p-3.5 border border-white/5 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Lock size={18} className="text-purple-400" />
+              <div className="text-xs">
+                <p className="font-bold text-white">4-Digit Transaction PIN</p>
+                <p className="text-white/50 text-[10px]">Required fallback for high-value transactions</p>
+              </div>
+            </div>
+            <span className="text-xs font-bold text-emerald-400">Configured</span>
+          </div>
+
+          {/* Deposit Guarantee */}
           <div className="mirror-glass rounded-2xl p-3.5 border border-white/5 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <KeyRound size={18} className="text-amber-400" />
               <div className="text-xs">
                 <p className="font-bold text-white">NDIC Deposit Guarantee</p>
-                <p className="text-white/50">Up to ₦5,000,000 protection</p>
+                <p className="text-white/50 text-[10px]">Up to ₦5,000,000 insured</p>
               </div>
             </div>
             <span className="text-xs font-bold text-emerald-400">Verified</span>

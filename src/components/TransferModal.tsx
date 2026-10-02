@@ -4,6 +4,8 @@ import { db } from '../lib/firebase';
 import { doc, addDoc, collection, setDoc, updateDoc, increment, serverTimestamp, getDoc } from 'firebase/firestore';
 import { formatNaira } from '../utils/format';
 import { generatePalmPayTransactionId, generatePalmPaySessionId, generatePalmPayRemark } from '../utils/transactionFormat';
+import { isHighValueTransaction } from '../utils/webauthn';
+import BiometricAuthOverlay from './BiometricAuthOverlay';
 import LoadingExecutionOverlay from './LoadingExecutionOverlay';
 
 interface TransferModalProps {
@@ -35,6 +37,7 @@ export default function TransferModal({
   const [loadingBanks, setLoadingBanks] = useState(true);
   const [verifying, setVerifying] = useState(false);
   const [accountError, setAccountError] = useState('');
+  const [showBiometricConfirm, setShowBiometricConfirm] = useState(false);
 
   useEffect(() => {
     fetch('/api/banks')
@@ -127,6 +130,16 @@ export default function TransferModal({
       return;
     }
 
+    // High-Value Transaction Biometric Challenge
+    if (isHighValueTransaction(amount)) {
+      setShowBiometricConfirm(true);
+      return;
+    }
+
+    await executeTransfer(amount);
+  };
+
+  const executeTransfer = async (amount: number) => {
     setLoading(true);
 
     try {
@@ -378,6 +391,29 @@ export default function TransferModal({
             subtitle={`Transferring funds to ${formData.accountName || formData.accountNumber} at ${formData.bankName}. Connecting securely to NIBSS.`}
             amount={Number(formData.amount) || undefined}
             variant="purple"
+          />
+        )}
+
+        {/* High-Value Biometric Authorization Modal */}
+        {showBiometricConfirm && (
+          <BiometricAuthOverlay
+            userId={userProfile.phoneNumber}
+            userName={userProfile.fullName || userProfile.userName || 'PalmPay User'}
+            mode="transaction"
+            transactionContext={{
+              amount: Number(formData.amount),
+              recipient: `${formData.accountName || formData.accountNumber} (${formData.bankName || 'Bank'})`,
+              type: 'Bank Transfer',
+            }}
+            onSuccess={() => {
+              setShowBiometricConfirm(false);
+              executeTransfer(Number(formData.amount));
+            }}
+            onCancel={() => setShowBiometricConfirm(false)}
+            onFallbackToPin={() => {
+              setShowBiometricConfirm(false);
+              executeTransfer(Number(formData.amount));
+            }}
           />
         )}
       </div>

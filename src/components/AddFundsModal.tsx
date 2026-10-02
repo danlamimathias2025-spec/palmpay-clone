@@ -4,6 +4,7 @@ import { db } from '../lib/firebase';
 import { doc, addDoc, collection, setDoc, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
 import { normalizePalmPayAccountNumber } from '../utils/account';
 import { formatNaira } from '../utils/format';
+import { generatePalmPayTransactionId, generatePalmPaySessionId, generatePalmPayRemark } from '../utils/transactionFormat';
 import LoadingExecutionOverlay from './LoadingExecutionOverlay';
 
 interface AddFundsModalProps {
@@ -74,24 +75,45 @@ export default function AddFundsModal({
     setIsProcessing(true);
 
     const now = new Date();
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
     const monthName = months[now.getMonth()];
     const dateFormatted = `${monthName} ${now.getDate()}, ${now.getFullYear()} ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    const txRef = `recv-${Date.now()}`;
+    const authenticTxId = generatePalmPayTransactionId(now, txRef);
+    const authenticSessionId = generatePalmPaySessionId(now, '999991', txRef);
+    const recipientDisplayName = userProfile.fullName || userProfile.userName || 'PalmPay User';
+    const recipientAcc = userProfile.accountNumber || userProfile.phoneNumber || '8082076038';
+
+    const authenticRemark = generatePalmPayRemark({
+      isIncoming: true,
+      type: 'credit',
+      senderName: cleanSender,
+      senderBank: senderBank,
+      recipientName: recipientDisplayName,
+      recipientAccount: recipientAcc,
+      narration: narration || `trsf from ${senderBank} / ${cleanSender} to ${recipientAcc} ${recipientDisplayName}`,
+    });
 
     const newTransaction = {
-      id: `recv-${Date.now()}`,
+      id: txRef,
       title: `Received from ${cleanSender}`,
-      recipient: userProfile.fullName || userProfile.userName || 'PalmPay User',
+      recipient: recipientDisplayName,
+      accountNumber: recipientAcc,
       senderName: cleanSender,
       senderBank: senderBank,
       amount: num,
-      formattedAmount: `+${num.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`,
+      formattedAmount: `+₦${num.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`,
       type: 'credit' as const,
       category: 'transfer' as const,
       status: 'successful' as const,
-      month: 'Sep' as const,
+      month: monthName,
       date: dateFormatted,
-      narration: narration || 'Funds deposit',
+      narration: authenticRemark,
+      remark: authenticRemark,
+      reference: txRef,
+      txId: authenticTxId,
+      transactionId: authenticTxId,
+      sessionId: authenticSessionId,
       timestamp: { seconds: Math.floor(Date.now() / 1000) },
     };
 

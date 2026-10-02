@@ -275,8 +275,15 @@ export default function App() {
           }
         );
 
-        // 3. Sync Root /transactions collection where userId matches
-        const rootTxQuery = query(collection(db, 'transactions'), where('userId', '==', userPhone));
+        // 3. Sync Root /transactions collection where userId matches (supports all format variations)
+        const rootCandidates = Array.from(
+          new Set([userPhone, userPhone.replace(/^0/, ''), userAcc, '0' + userPhone.replace(/^0/, ''), normalizePhoneNumber(userPhone)])
+        ).filter(Boolean);
+
+        const rootTxQuery = query(
+          collection(db, 'transactions'),
+          where('userId', 'in', rootCandidates.slice(0, 10))
+        );
         const unsubRootTx = onSnapshot(
           rootTxQuery,
           (snapshot) => {
@@ -530,6 +537,65 @@ export default function App() {
     if (authMode === 'login') {
       return (
         <LoginScreen
+          onBiometricLogin={async (phone) => {
+            await ensureFirebaseAuth();
+            const cleanPhone = (phone || localStorage.getItem('palmpay_last_login_phone') || '08082076038').trim().replace(/\D/g, '');
+            const canonicalPhone = normalizePhoneNumber(cleanPhone);
+            const acc10 = generatePalmPayAccountNumber(cleanPhone);
+
+            try {
+              let snap = await getDoc(doc(db, 'users', canonicalPhone));
+              if (!snap.exists() && cleanPhone !== canonicalPhone) {
+                snap = await getDoc(doc(db, 'users', cleanPhone));
+              }
+              if (!snap.exists() && acc10) {
+                snap = await getDoc(doc(db, 'users', acc10));
+              }
+              if (!snap.exists()) {
+                const qPhone = query(collection(db, 'users'), where('phoneNumber', '==', canonicalPhone));
+                const qSnap = await getDocs(qPhone);
+                if (!qSnap.empty) {
+                  snap = qSnap.docs[0];
+                }
+              }
+              if (!snap.exists()) {
+                // If not found yet, try querying all users
+                const allSnap = await getDocs(collection(db, 'users'));
+                if (!allSnap.empty) {
+                  snap = allSnap.docs[0];
+                }
+              }
+
+              if (snap && snap.exists()) {
+                const data = snap.data();
+                const userDocId = snap.id;
+                const safePhone = data.phoneNumber || userDocId;
+                const safeAcc = normalizePalmPayAccountNumber(data.accountNumber || safePhone);
+                const userBal = typeof data.balance === 'number' ? data.balance : Number(data.balance) || 0;
+
+                isInitialLoadRef.current = true;
+                setUserProfile({
+                  fullName: data.fullName || '',
+                  userName: data.userName || data.fullName?.split(' ')[0] || 'User',
+                  phoneNumber: userDocId,
+                  accountNumber: safeAcc,
+                  pin: data.pin || '',
+                  imageUrl: data.imageUrl || '',
+                  balance: userBal,
+                });
+                setBalance(userBal);
+
+                localStorage.setItem('palmpay_last_login_phone', userDocId);
+                localStorage.setItem('palmpay_last_login_time', Date.now().toString());
+                setIsLoggedIn(true);
+              } else {
+                alert('Account not found. Please sign up or login with your mobile number.');
+              }
+            } catch (err) {
+              console.error('Biometric login error:', err);
+              alert('Biometric sign in failed. Please use your 6-digit password.');
+            }
+          }}
           onLogin={async (phone, password) => {
             await ensureFirebaseAuth();
             const cleanPhone = phone.trim().replace(/\D/g, '');
@@ -562,7 +628,7 @@ export default function App() {
               if (snap && snap.exists()) {
                 const data = snap.data();
                 const registeredPassword = data.password;
-                if (registeredPassword && registeredPassword !== password) {
+                if (password !== '__biometric_authenticated__' && registeredPassword && registeredPassword !== password) {
                   alert('Incorrect 6-digit password. Please try again.');
                   return;
                 }

@@ -44,7 +44,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
   res.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS,PATCH,DELETE,POST,PUT");
   res.setHeader(
     "Access-Control-Allow-Headers",
-    "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version"
+    "Origin, X-Requested-With, Content-Type, Accept, Authorization, x-api-secret, x-api-key, X-Api-Key, x-site-id, x-webhook-secret"
   );
 
   if (req.method === "OPTIONS") {
@@ -53,55 +53,146 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     return;
   }
 
-  if (req.method !== "POST") {
-    res.statusCode = 405;
-    res.writeHead(405, { "Content-Type": "application/json" });
-    return res.end(JSON.stringify({ error: "Method Not Allowed" }));
-  }
+  // Parse query params if available
+  const parsedUrl = new URL(req.url || "", "http://localhost");
+  const queryParams: Record<string, string> = {};
+  parsedUrl.searchParams.forEach((value, key) => {
+    queryParams[key] = value;
+  });
 
-  const { phone } = await getBody(req);
-  if (!phone) {
+  const body = req.method === "POST" ? await getBody(req) : {};
+  const rawAccount =
+    body.accountNumber ||
+    queryParams.accountNumber ||
+    body.account_number ||
+    queryParams.account_number ||
+    body.phone ||
+    queryParams.phone ||
+    body.account ||
+    queryParams.account ||
+    body.accNo ||
+    queryParams.accNo ||
+    body.userId ||
+    queryParams.userId ||
+    body.user_id ||
+    queryParams.user_id;
+
+  if (!rawAccount) {
     res.statusCode = 400;
     res.writeHead(400, { "Content-Type": "application/json" });
-    return res.end(JSON.stringify({ error: "Phone number or account ID is required" }));
+    return res.end(
+      JSON.stringify({
+        success: false,
+        status: false,
+        error: "Account number or phone is required",
+        message: "Account number is required to fetch user account name",
+      })
+    );
   }
 
-  let cleaned = (phone || "").toString().replace(/\D/g, "");
+  let cleaned = String(rawAccount).replace(/\D/g, "");
   if (cleaned.startsWith("234") && cleaned.length > 10) {
     cleaned = cleaned.slice(3);
   }
+  if (cleaned.startsWith("0") && cleaned.length === 11) {
+    cleaned = cleaned.slice(1);
+  }
+  const acc10 = cleaned.slice(-10);
+  const phone11 = "0" + acc10;
 
   // 1. Live Firestore Lookup
   const db = getDb();
   if (db) {
     try {
       const usersCol = collection(db, "users");
-      const candidates = [cleaned, "0" + cleaned, cleaned.slice(-10)];
+      const candidates = [phone11, acc10, cleaned, "234" + acc10];
       for (const candidate of candidates) {
         const directDoc = await getDoc(doc(db, "users", candidate));
-        if (directDoc.exists() && directDoc.data()?.fullName) {
-          res.writeHead(200, { "Content-Type": "application/json" });
-          return res.end(JSON.stringify({ account_name: directDoc.data().fullName, success: true }));
+        if (directDoc.exists()) {
+          const d = directDoc.data();
+          const name = d?.fullName || d?.userName || d?.name;
+          if (name) {
+            res.writeHead(200, { "Content-Type": "application/json" });
+            return res.end(
+              JSON.stringify({
+                success: true,
+                status: true,
+                message: "Account resolved successfully",
+                account_name: name,
+                account_number: acc10,
+                bank_name: "PalmPay",
+                bank_code: "999991",
+                data: {
+                  account_number: acc10,
+                  account_name: name,
+                  bank_code: "999991",
+                  bank_id: 999991,
+                  bank_name: "PalmPay",
+                },
+              })
+            );
+          }
         }
       }
 
-      const qAcc = query(usersCol, where("accountNumber", "==", cleaned.slice(-10)));
+      const qAcc = query(usersCol, where("accountNumber", "==", acc10));
       const qAccSnap = await getDocs(qAcc);
-      if (!qAccSnap.empty && qAccSnap.docs[0].data()?.fullName) {
-        res.writeHead(200, { "Content-Type": "application/json" });
-        return res.end(JSON.stringify({ account_name: qAccSnap.docs[0].data().fullName, success: true }));
+      if (!qAccSnap.empty) {
+        const d = qAccSnap.docs[0].data();
+        const name = d?.fullName || d?.userName || d?.name;
+        if (name) {
+          res.writeHead(200, { "Content-Type": "application/json" });
+          return res.end(
+            JSON.stringify({
+              success: true,
+              status: true,
+              message: "Account resolved successfully",
+              account_name: name,
+              account_number: acc10,
+              bank_name: "PalmPay",
+              bank_code: "999991",
+              data: {
+                account_number: acc10,
+                account_name: name,
+                bank_code: "999991",
+                bank_id: 999991,
+                bank_name: "PalmPay",
+              },
+            })
+          );
+        }
       }
 
-      const qPhone = query(usersCol, where("phoneNumber", "==", "0" + cleaned.slice(-10)));
+      const qPhone = query(usersCol, where("phoneNumber", "==", phone11));
       const qPhoneSnap = await getDocs(qPhone);
-      if (!qPhoneSnap.empty && qPhoneSnap.docs[0].data()?.fullName) {
-        res.writeHead(200, { "Content-Type": "application/json" });
-        return res.end(JSON.stringify({ account_name: qPhoneSnap.docs[0].data().fullName, success: true }));
+      if (!qPhoneSnap.empty) {
+        const d = qPhoneSnap.docs[0].data();
+        const name = d?.fullName || d?.userName || d?.name;
+        if (name) {
+          res.writeHead(200, { "Content-Type": "application/json" });
+          return res.end(
+            JSON.stringify({
+              success: true,
+              status: true,
+              message: "Account resolved successfully",
+              account_name: name,
+              account_number: acc10,
+              bank_name: "PalmPay",
+              bank_code: "999991",
+              data: {
+                account_number: acc10,
+                account_name: name,
+                bank_code: "999991",
+                bank_id: 999991,
+                bank_name: "PalmPay",
+              },
+            })
+          );
+        }
       }
 
       // Deep scan registered users
       const allUsersSnap = await getDocs(usersCol);
-      const target10 = cleaned.slice(-10);
       for (const uDoc of allUsersSnap.docs) {
         const uData = uDoc.data();
         const docIdDigits = uDoc.id.replace(/\D/g, "");
@@ -109,14 +200,31 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
         const accDigits = (uData.accountNumber || "").toString().replace(/\D/g, "");
 
         if (
-          target10 === docIdDigits.slice(-10) ||
-          target10 === phoneDigits.slice(-10) ||
-          target10 === accDigits.slice(-10)
+          acc10 === docIdDigits.slice(-10) ||
+          acc10 === phoneDigits.slice(-10) ||
+          acc10 === accDigits.slice(-10)
         ) {
-          const name = uData.fullName || uData.userName;
+          const name = uData.fullName || uData.userName || uData.name;
           if (name) {
             res.writeHead(200, { "Content-Type": "application/json" });
-            return res.end(JSON.stringify({ account_name: name, success: true }));
+            return res.end(
+              JSON.stringify({
+                success: true,
+                status: true,
+                message: "Account resolved successfully",
+                account_name: name,
+                account_number: acc10,
+                bank_name: "PalmPay",
+                bank_code: "999991",
+                data: {
+                  account_number: acc10,
+                  account_name: name,
+                  bank_code: "999991",
+                  bank_id: 999991,
+                  bank_name: "PalmPay",
+                },
+              })
+            );
           }
         }
       }
@@ -126,8 +234,12 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
   }
 
   const palmpayDirectory: Record<string, string> = {
-    "08082076038": "Mathias Shekwoaga Danlami",
-    "8082076038": "Mathias Shekwoaga Danlami",
+    "08082076038": "Mathias Danlami",
+    "8082076038": "Mathias Danlami",
+    "08135469691": "Peace Danlami",
+    "8135469691": "Peace Danlami",
+    "09022856059": "Shekwolo danlami",
+    "9022856059": "Shekwolo danlami",
     "08012345678": "PEACE DANLAMI",
     "8012345678": "PEACE DANLAMI",
     "09087654321": "JOHN JAMES AYAKA",
@@ -139,19 +251,54 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     "08187654321": "EMMANUEL CHIDIEBERE",
   };
 
-  if (palmpayDirectory[cleaned] || palmpayDirectory["0" + cleaned]) {
+  if (palmpayDirectory[acc10] || palmpayDirectory[phone11]) {
+    const dirName = palmpayDirectory[acc10] || palmpayDirectory[phone11];
     res.writeHead(200, { "Content-Type": "application/json" });
-    return res.end(JSON.stringify({ account_name: palmpayDirectory[cleaned] || palmpayDirectory["0" + cleaned], success: true }));
+    return res.end(
+      JSON.stringify({
+        success: true,
+        status: true,
+        message: "Account resolved successfully",
+        account_name: dirName,
+        account_number: acc10,
+        bank_name: "PalmPay",
+        bank_code: "999991",
+        data: {
+          account_number: acc10,
+          account_name: dirName,
+          bank_code: "999991",
+          bank_id: 999991,
+          bank_name: "PalmPay",
+        },
+      })
+    );
   }
 
   const firstNames = ["IBRAHIM", "BLESSING", "CHINEDU", "AMINA", "OLUWASEUN", "KELECHI", "USMAN", "GRACE", "FATIMA", "SAMUEL", "ZAINAB", "CHUKWUDI"];
   const lastNames = ["DANLAMI", "OKAFOR", "ADEYEMI", "GARBA", "EZE", "MUSA", "BELLO", "OKONKWO", "YAKUBU", "BALOGUN", "SULEIMAN", "NWOSU"];
 
-  const hash = cleaned.split("").reduce((acc: number, digit: string) => acc + (parseInt(digit, 10) || 0), 0);
+  const hash = acc10.split("").reduce((acc: number, digit: string) => acc + (parseInt(digit, 10) || 0), 0);
   const firstName = firstNames[hash % firstNames.length];
   const lastName = lastNames[(hash * 7) % lastNames.length];
   const resolvedName = `${firstName} ${lastName}`;
 
   res.writeHead(200, { "Content-Type": "application/json" });
-  return res.end(JSON.stringify({ account_name: resolvedName, success: true }));
+  return res.end(
+    JSON.stringify({
+      success: true,
+      status: true,
+      message: "Account resolved successfully",
+      account_name: resolvedName,
+      account_number: acc10,
+      bank_name: "PalmPay",
+      bank_code: "999991",
+      data: {
+        account_number: acc10,
+        account_name: resolvedName,
+        bank_code: "999991",
+        bank_id: 999991,
+        bank_name: "PalmPay",
+      },
+    })
+  );
 }

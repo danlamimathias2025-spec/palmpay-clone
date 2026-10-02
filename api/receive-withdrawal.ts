@@ -63,46 +63,38 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     return;
   }
 
-  if (req.method === "GET") {
+  // Parse query params if available
+  const parsedUrl = new URL(req.url || "", "http://localhost");
+  const queryParams: Record<string, string> = {};
+  parsedUrl.searchParams.forEach((value, key) => {
+    queryParams[key] = value;
+  });
+
+  const hasParams = Object.keys(queryParams).length > 0;
+  if (req.method === "GET" && !hasParams) {
     res.writeHead(200, { "Content-Type": "application/json" });
     return res.end(
       JSON.stringify({
         status: "active",
         endpoint: "/api/receive-withdrawal",
-        methods: ["POST"],
+        supportedMethods: ["POST", "GET"],
         description: "Webhook receiver for incoming withdrawal credits from Site A to isolated user accounts in PalmPay",
       })
     );
   }
 
-  if (req.method !== "POST") {
-    res.writeHead(405, { "Content-Type": "application/json" });
-    return res.end(JSON.stringify({ error: "Method Not Allowed" }));
-  }
-
   try {
-    const expectedSecret =
-      process.env.INTERNAL_API_SECRET ||
-      process.env.VITE_INTERNAL_API_SECRET ||
-      "palmpay-site-b-secret-key-2026";
-
     const rawHeaderSecret =
       (req.headers["x-api-secret"] as string) ||
+      (req.headers["x-api-key"] as string) ||
+      (queryParams.secret as string) ||
+      (queryParams.apiKey as string) ||
       (req.headers["authorization"] ? (req.headers["authorization"] as string).replace(/^Bearer\s+/i, "") : "");
 
-    // Allow authorization if secret matches configured secret or default fallback
-    const isAuthorized =
-      !expectedSecret ||
-      rawHeaderSecret === expectedSecret ||
-      rawHeaderSecret === "palmpay-site-b-secret-key-2026" ||
-      (rawHeaderSecret && rawHeaderSecret.includes(expectedSecret));
+    console.log(`[Vercel /api/receive-withdrawal] Incoming withdrawal request from Site A. Auth token present: ${rawHeaderSecret ? "YES" : "NO (Open access permitted)"}`);
 
-    if (!isAuthorized) {
-      res.writeHead(401, { "Content-Type": "application/json" });
-      return res.end(JSON.stringify({ success: false, message: "Unauthorized: Invalid or missing x-api-secret header" }));
-    }
-
-    const body = await getBody(req);
+    const rawBody = req.method === "POST" ? await getBody(req) : {};
+    const body = { ...queryParams, ...rawBody };
 
     // Extract account number with extensive key compatibility
     const accountNumberRaw =
@@ -308,6 +300,9 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     const matchedUserRef = doc(db, "users", matchedUserId);
     let newBalance = 0;
     let alreadyHandledInTx = false;
+    let finalTxId = "";
+    let finalSessionId = "";
+    let finalRemark = "";
 
     // 3. Atomically update the matched user's balance and append transaction to their isolated subcollection
     await runTransaction(db, async (t) => {
@@ -347,7 +342,13 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       const now = new Date();
       const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"] as const;
       const month = months[now.getMonth()];
-      const dateFormatted = `${month} ${now.getDate()}, ${now.getFullYear()} ${now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+      const yy = String(now.getFullYear()).slice(-2);
+      const mm = String(now.getMonth() + 1).padStart(2, "0");
+      const dd = String(now.getDate()).padStart(2, "0");
+      const hh = String(now.getHours()).padStart(2, "0");
+      const min = String(now.getMinutes()).padStart(2, "0");
+      const ss = String(now.getSeconds()).padStart(2, "0");
+      const dateTime12 = `${yy}${mm}${dd}${hh}${min}${ss}`;
 
       const recipientDisplayName =
         body.recipient ||
@@ -355,6 +356,30 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
         freshData?.fullName ||
         freshData?.userName ||
         "PalmPay Customer";
+
+      // 18-digit authentic PalmPay Transaction ID
+      const generatedTxId =
+        body.txId && /^\d{16,20}$/.test(String(body.txId).trim())
+          ? String(body.txId).trim()
+          : `${dateTime12}${String(Math.floor(100000 + Math.random() * 900000))}`;
+
+      // 30-digit authentic NIBSS Session ID
+      const generatedSessionId =
+        body.sessionId && /^\d{30}$/.test(String(body.sessionId).trim())
+          ? String(body.sessionId).trim()
+          : `999991${dateTime12}${String(Math.floor(100000 + Math.random() * 900000))}${String(Math.floor(100000 + Math.random() * 900000))}`;
+
+      // Authentic PalmPay Remark line
+      const authenticRemark =
+        body.remark ||
+        body.narration ||
+        `trsf from ${cleanSenderBank.toUpperCase()} / ${cleanSender.toUpperCase()} to ${acc10} ${recipientDisplayName.toUpperCase()}`;
+
+      finalTxId = generatedTxId;
+      finalSessionId = generatedSessionId;
+      finalRemark = authenticRemark;
+
+      const dateFormatted = body.date || `${month} ${now.getDate()}, ${now.getFullYear()} ${now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
 
       const txSubCol = collection(matchedUserRef, "transactions");
       const userTxDoc = doc(txSubCol, cleanRef);
@@ -369,14 +394,16 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
         formattedAmount: `+₦${parsedAmount.toLocaleString("en-NG", { minimumFractionDigits: 2 })}`,
         senderName: cleanSender,
         senderBank: cleanSenderBank,
-        narration: cleanNarration,
+        narration: authenticRemark,
+        remark: authenticRemark,
         title: cleanTitle,
         accountNumber: acc10,
         reference: cleanRef,
-        txId: cleanRef,
-        sessionId: cleanSessionId,
+        txId: generatedTxId,
+        transactionId: generatedTxId,
+        sessionId: generatedSessionId,
         recipient: recipientDisplayName,
-        date: body.date || dateFormatted,
+        date: dateFormatted,
         month: body.month || month,
         timestamp: serverTimestamp(),
         createdAt: serverTimestamp(),
@@ -397,6 +424,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       return res.end(
         JSON.stringify({
           success: true,
+          status: true,
           message: "Transaction already processed successfully (Idempotent)",
           reference: cleanRef,
         })
@@ -407,6 +435,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     return res.end(
       JSON.stringify({
         success: true,
+        status: true,
         message: "Account credited successfully with zero error",
         data: {
           userId: matchedUserId,
@@ -415,10 +444,14 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
           formattedAmount: `+₦${parsedAmount.toLocaleString("en-NG", { minimumFractionDigits: 2 })}`,
           senderName: cleanSender,
           senderBank: cleanSenderBank,
-          narration: cleanNarration,
+          narration: finalRemark,
+          remark: finalRemark,
           title: cleanTitle,
           newBalance: newBalance,
           transactionReference: cleanRef,
+          transactionId: finalTxId,
+          txId: finalTxId,
+          sessionId: finalSessionId,
           status: cleanStatus,
         },
       })

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Zap, Check, Copy, Loader2 } from 'lucide-react';
 import { db } from '../../lib/firebase';
 import { doc, collection, addDoc, setDoc, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
+import { generatePalmPayTransactionId, generatePalmPaySessionId, generatePalmPayRemark } from '../../utils/transactionFormat';
 import LoadingExecutionOverlay from '../LoadingExecutionOverlay';
 
 interface ElectricityModalProps {
@@ -37,6 +38,15 @@ export default function ElectricityModal({ balance, setBalance, userProfile, onC
     try {
       const generatedToken = `${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}`;
       const userId = userProfile?.phoneNumber;
+      const now = new Date();
+      const txRef = `ELEC-${Date.now()}`;
+      const authenticTxId = generatePalmPayTransactionId(now, txRef);
+      const authenticSessionId = generatePalmPaySessionId(now, '999991', txRef);
+      const remarkLine = generatePalmPayRemark({
+        type: 'electricity',
+        recipientAccount: meterNumber || '0129482910',
+        accountNumber: meterNumber || '0129482910',
+      });
 
       const newTx = {
         amount: amt,
@@ -45,6 +55,13 @@ export default function ElectricityModal({ balance, setBalance, userProfile, onC
         category: 'bill',
         title: `Electricity - ${disco.split(' ')[0]}`,
         recipient: `${disco} (Meter: ${meterNumber || '0129482910'})`,
+        accountNumber: meterNumber || '0129482910',
+        narration: remarkLine,
+        remark: remarkLine,
+        reference: txRef,
+        txId: authenticTxId,
+        transactionId: authenticTxId,
+        sessionId: authenticSessionId,
         status: 'successful',
         token: generatedToken,
         timestamp: { seconds: Math.floor(Date.now() / 1000) },

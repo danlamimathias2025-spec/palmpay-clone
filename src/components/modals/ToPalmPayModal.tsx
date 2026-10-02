@@ -3,6 +3,7 @@ import { X, Check, ShieldCheck, Loader2, Send, ArrowRight, UserCheck } from 'luc
 import { db } from '../../lib/firebase';
 import { doc, getDoc, collection, addDoc, setDoc, updateDoc, increment, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
 import { normalizePalmPayAccountNumber } from '../../utils/account';
+import { generatePalmPayTransactionId, generatePalmPaySessionId, generatePalmPayRemark } from '../../utils/transactionFormat';
 import LoadingExecutionOverlay from '../LoadingExecutionOverlay';
 
 interface ToPalmPayModalProps {
@@ -160,6 +161,27 @@ export default function ToPalmPayModal({
       const month = months[now.getMonth()];
       const dateFormatted = `${month} ${now.getDate()}, ${now.getFullYear()} ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
 
+      const authenticTxId = generatePalmPayTransactionId(now, txRef);
+      const authenticSessionId = generatePalmPaySessionId(now, '999991', txRef);
+      const senderRemark = generatePalmPayRemark({
+        isIncoming: false,
+        type: 'transfer',
+        senderName,
+        senderBank: 'PALMPAY',
+        recipientName: finalRecipient,
+        recipientAccount: targetAcc,
+        narration: narration.trim(),
+      });
+      const recipientRemark = generatePalmPayRemark({
+        isIncoming: true,
+        type: 'credit',
+        senderName,
+        senderBank: 'PALMPAY',
+        recipientName: finalRecipient,
+        recipientAccount: targetAcc,
+        narration: narration.trim(),
+      });
+
       // 1. Debit Sender in Firestore & Record Sender Transaction
       const senderTx = {
         amount: num,
@@ -171,10 +193,12 @@ export default function ToPalmPayModal({
         senderBank: 'PalmPay Instant',
         senderName: senderName,
         title: `Send - ${finalRecipient}`,
-        narration: customNarration,
+        narration: senderRemark,
+        remark: senderRemark,
         reference: txRef,
-        txId: txRef,
-        sessionId: txRef,
+        txId: authenticTxId,
+        transactionId: authenticTxId,
+        sessionId: authenticSessionId,
         date: dateFormatted,
         month: month,
         status: 'successful',
@@ -202,10 +226,12 @@ export default function ToPalmPayModal({
           senderName: senderName,
           senderBank: 'PalmPay Instant',
           title: `Received from ${senderName}`,
-          narration: customNarration,
+          narration: recipientRemark,
+          remark: recipientRemark,
           reference: txRef,
-          txId: txRef,
-          sessionId: txRef,
+          txId: authenticTxId,
+          transactionId: authenticTxId,
+          sessionId: authenticSessionId,
           date: dateFormatted,
           month: month,
           status: 'successful',

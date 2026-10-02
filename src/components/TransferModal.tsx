@@ -3,6 +3,7 @@ import { X, Check, Landmark, ShieldCheck, ArrowRight } from 'lucide-react';
 import { db } from '../lib/firebase';
 import { doc, addDoc, collection, setDoc, updateDoc, increment, serverTimestamp, getDoc } from 'firebase/firestore';
 import { formatNaira } from '../utils/format';
+import { generatePalmPayTransactionId, generatePalmPaySessionId, generatePalmPayRemark } from '../utils/transactionFormat';
 import LoadingExecutionOverlay from './LoadingExecutionOverlay';
 
 interface TransferModalProps {
@@ -130,14 +131,34 @@ export default function TransferModal({
 
     try {
       const userId = userProfile.phoneNumber;
+      const txRef = 'TR-' + Date.now();
+      const now = new Date();
+      const authenticTxId = generatePalmPayTransactionId(now, txRef);
+      const authenticSessionId = generatePalmPaySessionId(now, formData.bankCode || '999991', txRef);
+      const recipientName = formData.accountName || formData.accountNumber;
+      const senderRemark = generatePalmPayRemark({
+        isIncoming: false,
+        type: 'transfer',
+        senderName: userProfile.fullName || userProfile.userName || 'PalmPay User',
+        senderBank: formData.bankName || 'Commercial Bank',
+        recipientName: recipientName,
+        recipientAccount: formData.accountNumber,
+      });
+
       const newTx = {
         amount,
         type: 'transfer',
-        recipient: formData.accountName || formData.accountNumber,
+        recipient: recipientName,
         accountNumber: formData.accountNumber,
         bankName: formData.bankName || 'Commercial Bank',
         bankCode: formData.bankCode,
         senderName: userProfile.fullName || userProfile.userName || 'PalmPay User',
+        narration: senderRemark,
+        remark: senderRemark,
+        reference: txRef,
+        txId: authenticTxId,
+        transactionId: authenticTxId,
+        sessionId: authenticSessionId,
         timestamp: { seconds: Math.floor(Date.now() / 1000) },
       };
 

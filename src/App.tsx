@@ -25,6 +25,7 @@ import SplashScreen from './components/SplashScreen';
 import FlashAlertOverlay from './components/FlashAlertOverlay';
 import { generatePalmPayAccountNumber, normalizePalmPayAccountNumber, normalizePhoneNumber } from './utils/account';
 import { formatNaira } from './utils/format';
+import { generatePalmPayTransactionId, generatePalmPaySessionId, generatePalmPayRemark } from './utils/transactionFormat';
 import {
   FlashAlertData,
   playFlashChime,
@@ -173,6 +174,27 @@ export default function App() {
           }
 
           const rawTimestamp = data.timestamp?.seconds || data.createdAt?.seconds || (typeof data.timestamp === 'number' ? data.timestamp : (typeof data.rawTimestamp === 'number' ? data.rawTimestamp : Date.now() / 1000));
+          const txDate = data.timestamp || data.createdAt || rawDate;
+          const seed = id || data.reference || `tx-${Date.now()}`;
+
+          const authenticTxId = data.txId && /^\d{16,20}$/.test(String(data.txId).trim())
+            ? String(data.txId).trim()
+            : generatePalmPayTransactionId(txDate, seed);
+
+          const authenticSessionId = data.sessionId && /^\d{30}$/.test(String(data.sessionId).trim())
+            ? String(data.sessionId).trim()
+            : generatePalmPaySessionId(txDate, data.bankCode || '999991', seed);
+
+          const authenticRemark = data.remark || data.narration || generatePalmPayRemark({
+            isIncoming: isCredit,
+            type: data.type,
+            category: data.category,
+            senderName: data.senderName,
+            senderBank: data.senderBank,
+            recipientName: data.recipient,
+            recipientAccount: data.accountNumber || userAcc,
+            narration: data.narration,
+          });
 
           return {
             ...data,
@@ -188,9 +210,12 @@ export default function App() {
             month: mName || 'Recent',
             category: data.category || 'transfer',
             status: (data.status === 'failed' ? 'failed' : data.status === 'pending' ? 'pending' : 'successful') as 'failed' | 'pending' | 'successful',
-            narration: data.narration,
+            narration: authenticRemark,
+            remark: authenticRemark,
             reference: data.reference || id,
-            sessionId: data.sessionId || data.reference || id,
+            txId: authenticTxId,
+            transactionId: authenticTxId,
+            sessionId: authenticSessionId,
             accountNumber: data.accountNumber || userAcc,
             rawTimestamp,
           };
@@ -365,7 +390,6 @@ export default function App() {
   };
 
   const handleAddTransaction = async (newTx: any) => {
-    const txId = newTx.id || `tx-${Date.now()}`;
     const now = new Date();
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
     const month = months[now.getMonth()];
@@ -373,9 +397,29 @@ export default function App() {
 
     const isCredit = newTx.type === 'credit';
     const numAmt = Math.abs(Number(newTx.amount) || 0);
+    const txRef = newTx.reference || newTx.id || `TX-${Date.now()}`;
+
+    const authenticTxId = newTx.txId && /^\d{16,20}$/.test(String(newTx.txId).trim())
+      ? String(newTx.txId).trim()
+      : generatePalmPayTransactionId(now, txRef);
+
+    const authenticSessionId = newTx.sessionId && /^\d{30}$/.test(String(newTx.sessionId).trim())
+      ? String(newTx.sessionId).trim()
+      : generatePalmPaySessionId(now, newTx.bankCode || '999991', txRef);
+
+    const authenticRemark = newTx.remark || newTx.narration || generatePalmPayRemark({
+      isIncoming: isCredit,
+      type: newTx.type,
+      category: newTx.category,
+      senderName: newTx.senderName,
+      senderBank: newTx.senderBank || 'PALMPAY',
+      recipientName: newTx.recipient,
+      recipientAccount: newTx.accountNumber || userProfile.accountNumber,
+      narration: newTx.narration,
+    });
 
     const formattedItem: TransactionItem = {
-      id: txId,
+      id: txRef,
       title: newTx.title || (isCredit ? `Received from ${newTx.senderName || 'PalmPay User'}` : `Send - ${newTx.recipient || 'Recipient'}`),
       recipient: newTx.recipient,
       senderName: newTx.senderName,
@@ -387,9 +431,12 @@ export default function App() {
       month: newTx.month || month,
       category: newTx.category || 'transfer',
       status: newTx.status || 'successful',
-      narration: newTx.narration,
-      reference: newTx.reference || txId,
-      sessionId: newTx.sessionId || txId,
+      narration: authenticRemark,
+      remark: authenticRemark,
+      reference: txRef,
+      txId: authenticTxId,
+      transactionId: authenticTxId,
+      sessionId: authenticSessionId,
       accountNumber: newTx.accountNumber || userProfile.accountNumber,
       userId: userProfile.phoneNumber,
       rawTimestamp: Date.now() / 1000,
@@ -400,8 +447,8 @@ export default function App() {
     if (userId) {
       try {
         const userRef = doc(db, 'users', userId);
-        const subTxRef = doc(collection(userRef, 'transactions'), txId);
-        const rootTxRef = doc(db, 'transactions', txId);
+        const subTxRef = doc(collection(userRef, 'transactions'), txRef);
+        const rootTxRef = doc(db, 'transactions', txRef);
 
         const record = {
           ...formattedItem,
@@ -557,6 +604,27 @@ export default function App() {
                     }
 
                     const rawTimestamp = tData.timestamp?.seconds || tData.createdAt?.seconds || (typeof tData.timestamp === 'number' ? tData.timestamp : (typeof tData.rawTimestamp === 'number' ? tData.rawTimestamp : Date.now() / 1000));
+                    const txDate = tData.timestamp || tData.createdAt || rawDate;
+                    const seed = id || tData.reference || `tx-${Date.now()}`;
+
+                    const authenticTxId = tData.txId && /^\d{16,20}$/.test(String(tData.txId).trim())
+                      ? String(tData.txId).trim()
+                      : generatePalmPayTransactionId(txDate, seed);
+
+                    const authenticSessionId = tData.sessionId && /^\d{30}$/.test(String(tData.sessionId).trim())
+                      ? String(tData.sessionId).trim()
+                      : generatePalmPaySessionId(txDate, tData.bankCode || '999991', seed);
+
+                    const authenticRemark = tData.remark || tData.narration || generatePalmPayRemark({
+                      isIncoming: isCredit,
+                      type: tData.type,
+                      category: tData.category,
+                      senderName: tData.senderName,
+                      senderBank: tData.senderBank,
+                      recipientName: tData.recipient,
+                      recipientAccount: tData.accountNumber || safeAcc,
+                      narration: tData.narration,
+                    });
 
                     return {
                       ...tData,
@@ -572,9 +640,12 @@ export default function App() {
                       month: mName || 'Recent',
                       category: tData.category || 'transfer',
                       status: (tData.status === 'failed' ? 'failed' : tData.status === 'pending' ? 'pending' : 'successful') as 'failed' | 'pending' | 'successful',
-                      narration: tData.narration,
+                      narration: authenticRemark,
+                      remark: authenticRemark,
                       reference: tData.reference || id,
-                      sessionId: tData.sessionId || tData.reference || id,
+                      txId: authenticTxId,
+                      transactionId: authenticTxId,
+                      sessionId: authenticSessionId,
                       accountNumber: tData.accountNumber || safeAcc,
                       rawTimestamp,
                     };

@@ -3,6 +3,7 @@ import { X, Smartphone, Check, Sparkles } from 'lucide-react';
 import { db } from '../lib/firebase';
 import { doc, collection, addDoc, setDoc, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
 import { formatNaira } from '../utils/format';
+import { generatePalmPayTransactionId, generatePalmPaySessionId, generatePalmPayRemark } from '../utils/transactionFormat';
 import LoadingExecutionOverlay from './LoadingExecutionOverlay';
 
 interface AirtimeModalProps {
@@ -46,6 +47,17 @@ export default function AirtimeModal({
       const cashback = Math.round(amt * 0.03); // 3% cashback bonus
       const netDeduction = amt - cashback;
       const userId = userProfile?.phoneNumber;
+      const now = new Date();
+      const txRef = `AIR-${Date.now()}`;
+      const authenticTxId = generatePalmPayTransactionId(now, txRef);
+      const authenticSessionId = generatePalmPaySessionId(now, '999991', txRef);
+      const remarkLine = generatePalmPayRemark({
+        type: 'airtime',
+        network,
+        senderBank: `${network} Telecom`,
+        recipientAccount: phoneNumber,
+        accountNumber: phoneNumber,
+      });
 
       const newTx = {
         amount: amt,
@@ -57,7 +69,12 @@ export default function AirtimeModal({
         senderBank: `${network} Telecom`,
         recipient: `${network} Airtime (${phoneNumber})`,
         accountNumber: phoneNumber,
-        narration: `${network} Airtime Top up to ${phoneNumber}`,
+        narration: remarkLine,
+        remark: remarkLine,
+        reference: txRef,
+        txId: authenticTxId,
+        transactionId: authenticTxId,
+        sessionId: authenticSessionId,
         status: 'successful',
         timestamp: { seconds: Math.floor(Date.now() / 1000) },
       };

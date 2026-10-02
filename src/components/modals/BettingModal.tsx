@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Trophy, Check, Loader2 } from 'lucide-react';
 import { db } from '../../lib/firebase';
 import { doc, collection, addDoc, setDoc, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
+import { generatePalmPayTransactionId, generatePalmPaySessionId, generatePalmPayRemark } from '../../utils/transactionFormat';
 import LoadingExecutionOverlay from '../LoadingExecutionOverlay';
 
 interface BettingModalProps {
@@ -30,6 +31,17 @@ export default function BettingModal({ balance, setBalance, userProfile, onClose
     setIsProcessing(true);
     try {
       const userId = userProfile?.phoneNumber;
+      const now = new Date();
+      const txRef = `BET-${Date.now()}`;
+      const authenticTxId = generatePalmPayTransactionId(now, txRef);
+      const authenticSessionId = generatePalmPaySessionId(now, '999991', txRef);
+      const remarkLine = generatePalmPayRemark({
+        type: 'betting',
+        platform,
+        recipientAccount: customerId || 'Direct',
+        accountNumber: customerId || 'Direct',
+      });
+
       const newTx = {
         amount: amt,
         formattedAmount: `-₦${amt.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`,
@@ -37,6 +49,13 @@ export default function BettingModal({ balance, setBalance, userProfile, onClose
         category: 'other',
         title: `Fund ${platform} Wallet`,
         recipient: `${platform} Wallet (${customerId || 'Direct'})`,
+        accountNumber: customerId || 'Direct',
+        narration: remarkLine,
+        remark: remarkLine,
+        reference: txRef,
+        txId: authenticTxId,
+        transactionId: authenticTxId,
+        sessionId: authenticSessionId,
         status: 'successful',
         timestamp: { seconds: Math.floor(Date.now() / 1000) },
       };

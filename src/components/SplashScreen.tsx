@@ -7,10 +7,16 @@ export default function SplashScreen({ onFinish }: { onFinish: () => void }) {
     // Start subtle fade-out transition 300ms before 3s finish
     const fadeTimer = setTimeout(() => {
       setFading(true);
+      if (typeof window !== 'undefined' && (window as any).dismissOfflineSplash) {
+        (window as any).dismissOfflineSplash();
+      }
     }, 2700);
 
     // Exact 3 seconds total splash duration
     const finishTimer = setTimeout(() => {
+      if (typeof window !== 'undefined' && (window as any).dismissOfflineSplash) {
+        (window as any).dismissOfflineSplash();
+      }
       onFinish();
     }, 3000);
 

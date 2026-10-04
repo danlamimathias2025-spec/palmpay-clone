@@ -7,6 +7,8 @@ interface HeaderProps {
     userName: string;
     phoneNumber: string;
     imageUrl?: string;
+    photoURL?: string;
+    avatarUrl?: string;
   };
   onSupportClick: () => void;
   onSecurityClick: () => void;
@@ -14,7 +16,7 @@ interface HeaderProps {
 }
 
 export default function Header({ userProfile, onSupportClick, onSecurityClick, onBellClick }: HeaderProps) {
-  const avatarSrc = userProfile.imageUrl || '/src/assets/images/user_avatar_1790734650327.jpg';
+  const avatarSrc = userProfile.imageUrl || userProfile.photoURL || userProfile.avatarUrl || '/src/assets/images/user_avatar_1790734650327.jpg';
 
   return (
     <header className="px-4 pt-3 pb-2.5 flex items-center justify-between sticky top-0 z-30 bg-[#0d0f17]/95 backdrop-blur-md">

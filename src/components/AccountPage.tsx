@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { Camera, ChevronRight, Save, ShieldCheck, Copy, Check, Loader2 } from 'lucide-react';
 import { doc, setDoc } from 'firebase/firestore';
-import { db, uploadImageToStorage } from '../lib/firebase';
+import { db } from '../lib/firebase';
 import { generatePalmPayAccountNumber } from '../utils/account';
+import ProfilePhotoModal from './modals/ProfilePhotoModal';
 
 export default function AccountPage({ userProfile, setUserProfile, onLogout }: { userProfile: any, setUserProfile: any, onLogout: () => void }) {
   const accountNum = userProfile.accountNumber || generatePalmPayAccountNumber(userProfile.phoneNumber);
@@ -15,7 +16,7 @@ export default function AccountPage({ userProfile, setUserProfile, onLogout }: {
   });
   const [copied, setCopied] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [uploadingImage, setUploadingImage] = useState(false);
+  const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
 
   const copyAccount = () => {
     navigator.clipboard.writeText(accountNum);
@@ -23,21 +24,20 @@ export default function AccountPage({ userProfile, setUserProfile, onLogout }: {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setUploadingImage(true);
-      try {
-        const downloadUrl = await uploadImageToStorage(file, `avatars/${localProfile.phoneNumber}/${Date.now()}_${file.name}`);
-        setLocalProfile((prev: any) => ({ ...prev, imageUrl: downloadUrl }));
-        setUserProfile((prev: any) => ({ ...prev, imageUrl: downloadUrl }));
-        const userRef = doc(db, 'users', localProfile.phoneNumber);
-        await setDoc(userRef, { imageUrl: downloadUrl }, { merge: true });
-      } catch (err) {
-        console.warn('Avatar upload error:', err);
-      } finally {
-        setUploadingImage(false);
+  const handlePhotoUpdated = (newUrl: string) => {
+    setLocalProfile((prev: any) => ({ ...prev, imageUrl: newUrl, photoURL: newUrl, avatarUrl: newUrl }));
+    setUserProfile((prev: any) => ({ ...prev, imageUrl: newUrl, photoURL: newUrl, avatarUrl: newUrl }));
+    try {
+      const stored = localStorage.getItem('palmpay_user');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        parsed.imageUrl = newUrl;
+        parsed.photoURL = newUrl;
+        parsed.avatarUrl = newUrl;
+        localStorage.setItem('palmpay_user', JSON.stringify(parsed));
       }
+    } catch (e) {
+      console.warn('LocalStorage avatar update warning:', e);
     }
   };
 
@@ -55,6 +55,9 @@ export default function AccountPage({ userProfile, setUserProfile, onLogout }: {
             balance: Number(localProfile.balance)
         }, { merge: true });
         setUserProfile(localProfile);
+        try {
+          localStorage.setItem('palmpay_user', JSON.stringify(localProfile));
+        } catch (e) {}
         alert('Profile saved successfully!');
     } catch (error) {
         console.error('Save failed', error);
@@ -84,19 +87,39 @@ export default function AccountPage({ userProfile, setUserProfile, onLogout }: {
       <div className="bg-gradient-to-r from-[#6335ea] via-[#743df5] to-[#8a41f6] rounded-3xl p-6 text-white text-center mb-6 shadow-xl border border-white/10">
         <div className="relative inline-block">
           {localProfile.imageUrl ? (
-            <img src={localProfile.imageUrl} alt="Profile" className="w-24 h-24 rounded-full mx-auto object-cover border-4 border-white/20 shadow-md" />
+            <img
+              src={localProfile.imageUrl}
+              alt="Profile"
+              onClick={() => setIsPhotoModalOpen(true)}
+              className="w-24 h-24 rounded-full mx-auto object-cover border-4 border-white/20 shadow-md cursor-pointer hover:opacity-90 active:scale-95 transition-all"
+            />
           ) : (
-            <div className="w-24 h-24 rounded-full bg-white/20 mx-auto flex items-center justify-center text-3xl font-bold text-white border-4 border-white/20">
+            <div
+              onClick={() => setIsPhotoModalOpen(true)}
+              className="w-24 h-24 rounded-full bg-white/20 mx-auto flex items-center justify-center text-3xl font-bold text-white border-4 border-white/20 cursor-pointer hover:bg-white/30 active:scale-95 transition-all"
+            >
               {localProfile.fullName ? localProfile.fullName[0].toUpperCase() : 'M'}
             </div>
           )}
-          <label className="absolute bottom-0 right-0 bg-[#12131c] text-white p-2 rounded-full cursor-pointer shadow-md border border-white/20">
-            {uploadingImage ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} />}
-            <input type="file" className="hidden" onChange={handleImageChange} accept="image/*" disabled={uploadingImage} />
-          </label>
+          <button
+            onClick={() => setIsPhotoModalOpen(true)}
+            aria-label="Capture or upload photo"
+            className="absolute bottom-0 right-0 bg-[#12131c] text-white p-2.5 rounded-full cursor-pointer shadow-lg border border-white/20 hover:scale-110 active:scale-95 transition-all"
+          >
+            <Camera size={16} />
+          </button>
         </div>
         <input name="fullName" value={localProfile.fullName} onChange={handleInputChange} className="text-xl font-bold mt-4 bg-transparent text-center w-full border-b border-white/30 text-white" />
         <p className="text-xs text-purple-200 mt-1">Mobile: {localProfile.phoneNumber}</p>
+
+        {/* Profile Photo Capture Modal */}
+        <ProfilePhotoModal
+          isOpen={isPhotoModalOpen}
+          onClose={() => setIsPhotoModalOpen(false)}
+          currentPhotoUrl={localProfile.imageUrl || localProfile.photoURL}
+          phoneNumber={localProfile.phoneNumber}
+          onPhotoUpdated={handlePhotoUpdated}
+        />
 
         {/* 10-Digit PalmPay Account Number Badge */}
         <div className="mt-3 inline-flex items-center gap-2 bg-black/30 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/20">

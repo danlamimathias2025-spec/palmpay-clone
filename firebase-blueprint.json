@@ -11,7 +11,9 @@
         "accountNumber": { "type": "string", "maxLength": 20 },
         "balance": { "type": "number" },
         "pin": { "type": "string", "maxLength": 6 },
-        "password": { "type": "string", "maxLength": 10 }
+        "password": { "type": "string", "maxLength": 10 },
+        "imageUrl": { "type": "string", "maxLength": 1000000 },
+        "photoURL": { "type": "string", "maxLength": 1000000 }
       },
       "required": ["fullName", "userName", "phoneNumber", "accountNumber", "balance", "pin"]
     },

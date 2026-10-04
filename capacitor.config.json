@@ -1,0 +1,14 @@
+{
+  "appId": "com.palmpay.app",
+  "appName": "PalmPay",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "backgroundColor": "#151618",
+  "android": {
+    "allowMixedContent": true,
+    "backgroundColor": "#151618"
+  },
+  "server": {
+    "androidScheme": "https"
+  }
+}

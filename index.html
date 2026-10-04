@@ -185,12 +185,20 @@
       };
 
       // Service Worker Immediate Registration for 100% Offline Resilience
-      if ('serviceWorker' in navigator) {
+      if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
         window.addEventListener('load', function () {
           navigator.serviceWorker.register('/sw.js').catch(function (e) {
             console.warn('SW registration warning:', e);
           });
         });
+      }
+
+      // Cordova Native Android Bridge Loader (only when packaged inside APK)
+      if (window.location.protocol === 'file:' || window.cordova || /cordova/i.test(navigator.userAgent)) {
+        var cdv = document.createElement('script');
+        cdv.src = 'cordova.js';
+        cdv.onerror = function() {};
+        document.head.appendChild(cdv);
       }
     </script>
 

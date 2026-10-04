@@ -6,8 +6,9 @@
   "scripts": {
     "dev": "tsx server.ts",
     "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
+    "build:cordova": "vite build --base=./ && node scripts/prepare-cordova.js",
     "start": "node dist/server.cjs",
-    "clean": "rm -rf dist server.js",
+    "clean": "rm -rf dist server.js www",
     "lint": "tsc --noEmit"
   },
   "dependencies": {

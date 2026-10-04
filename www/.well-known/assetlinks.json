@@ -1,0 +1,22 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.palmpay.mobile",
+      "sha256_cert_fingerprints": [
+        "14:6D:E9:44:C5:4F:57:1D:69:D7:0E:26:03:6A:B9:32:4D:42:04:78:E8:4A:28:B4:DF:AE:F7:73:96:FA:F8:9F"
+      ]
+    }
+  },
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "app.pwabuilder.palmpay",
+      "sha256_cert_fingerprints": [
+        "14:6D:E9:44:C5:4F:57:1D:69:D7:0E:26:03:6A:B9:32:4D:42:04:78:E8:4A:28:B4:DF:AE:F7:73:96:FA:F8:9F"
+      ]
+    }
+  }
+]

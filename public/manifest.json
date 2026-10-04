@@ -3,15 +3,8 @@
   "short_name": "PalmPay",
   "description": "Simple, Fast, Secure Payments & Finance",
   "start_url": "/",
-  "scope": "/",
   "id": "/",
   "display": "standalone",
-  "display_override": [
-    "standalone",
-    "fullscreen",
-    "window-controls-overlay",
-    "minimal-ui"
-  ],
   "orientation": "portrait",
   "background_color": "#ffffff",
   "theme_color": "#6c1cf5",

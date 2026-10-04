@@ -181,10 +181,25 @@ function formatDateTimeStandard(d: Date): string {
   return `${yyyy}-${mm}-${dd} ${hh}:${min}:${ss}`;
 }
 
+export interface PalmPayReceiptDetails {
+  txId: string;
+  sessionId: string;
+  remark: string;
+  completionTime: string;
+  senderName: string;
+  senderBank: string;
+  recipientName: string;
+  recipientAccount: string;
+  recipientBank: string;
+  maskedSenderAccount: string;
+  maskedRecipientAccount: string;
+  isIncoming: boolean;
+}
+
 /**
  * Comprehensive resolution of authentic receipt metadata for any transaction.
  */
-export function ensureReceiptDetails(tx: any, currentUserName?: string, currentUserPhone?: string) {
+export function ensureReceiptDetails(tx: any, currentUserName?: string, currentUserPhone?: string): PalmPayReceiptDetails {
   const isIncoming =
     tx.type === 'credit' ||
     (typeof tx.formattedAmount === 'string' && tx.formattedAmount.startsWith('+')) ||

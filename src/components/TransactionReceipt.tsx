@@ -1,9 +1,8 @@
 import React, { useRef, useState } from 'react';
-import { ArrowLeft, Check, ChevronRight, Copy, Headphones, CheckCircle2, Share2, Download, ReceiptText, Smartphone, ShieldCheck } from 'lucide-react';
-import html2canvas from 'html2canvas';
-import { jsPDF } from 'jspdf';
+import { ArrowLeft, Check, ChevronRight, Copy, Headphones, CheckCircle2, Share2, Download, ReceiptText, Smartphone, ShieldCheck, Image as ImageIcon, FileText } from 'lucide-react';
 import NetworkLogo, { detectTelecomNetwork } from './NetworkLogo';
 import { ensureReceiptDetails } from '../utils/transactionFormat';
+import { downloadReceiptAsImage, downloadReceiptAsPDF, shareReceipt } from '../utils/receiptCanvas';
 
 interface TransactionReceiptProps {
   transaction: any;
@@ -23,8 +22,9 @@ export default function TransactionReceipt({
   const [activeTab, setActiveTab] = useState<'app' | 'slip'>('app');
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [sharingImage, setSharingImage] = useState(false);
-  const [sharingPdf, setSharingPdf] = useState(false);
+  const [savingImage, setSavingImage] = useState(false);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [sharing, setSharing] = useState(false);
 
   // Compute authentic PalmPay receipt details
   const details = ensureReceiptDetails(transaction);
@@ -53,53 +53,46 @@ export default function TransactionReceipt({
     }
   };
 
-  const handleShareAsImage = async () => {
-    const target = activeTab === 'slip' ? slipRef.current : receiptRef.current;
-    if (!target) return;
-    setSharingImage(true);
+  const handleSaveAsImage = async () => {
+    setSavingImage(true);
     try {
-      const canvas = await html2canvas(target, {
-        backgroundColor: activeTab === 'slip' ? '#ffffff' : '#f4f5fa',
-        scale: 2,
-        useCORS: true,
-      });
-      const dataURL = canvas.toDataURL('image/png');
-      const link = document.createElement('a');
-      link.href = dataURL;
-      link.download = `palmpay_receipt_${details.txId}.png`;
-      link.click();
-      showToast('Receipt image downloaded!');
+      await downloadReceiptAsImage(details, formattedNum);
+      showToast('Receipt saved as PNG image!');
     } catch (e) {
-      console.error(e);
+      console.error('Image export failed:', e);
       showToast('Export failed. Please retry.');
     } finally {
-      setSharingImage(false);
+      setSavingImage(false);
     }
   };
 
-  const handleShareAsPDF = async () => {
-    const target = activeTab === 'slip' ? slipRef.current : receiptRef.current;
-    if (!target) return;
-    setSharingPdf(true);
+  const handleDownloadPDF = async () => {
+    setDownloadingPdf(true);
     try {
-      const canvas = await html2canvas(target, {
-        backgroundColor: activeTab === 'slip' ? '#ffffff' : '#f4f5fa',
-        scale: 2,
-        useCORS: true,
-      });
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const imgProps = pdf.getImageProperties(imgData);
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`palmpay_receipt_${details.txId}.pdf`);
-      showToast('Receipt PDF exported!');
+      await downloadReceiptAsPDF(details, formattedNum);
+      showToast('Receipt PDF downloaded!');
     } catch (e) {
-      console.error(e);
-      showToast('Export failed. Please retry.');
+      console.error('PDF export failed:', e);
+      showToast('PDF export failed. Please retry.');
     } finally {
-      setSharingPdf(false);
+      setDownloadingPdf(false);
+    }
+  };
+
+  const handleShare = async () => {
+    setSharing(true);
+    try {
+      const res = await shareReceipt(details, formattedNum);
+      if (res.method === 'download') {
+        showToast('Receipt image downloaded for sharing!');
+      } else {
+        showToast('Receipt shared successfully!');
+      }
+    } catch (e) {
+      console.error('Share error:', e);
+      showToast('Share cancelled.');
+    } finally {
+      setSharing(false);
     }
   };
 
@@ -580,23 +573,34 @@ export default function TransactionReceipt({
         )}
 
         {/* Share & Download Actions */}
-        <div className="grid grid-cols-2 gap-3 pt-2">
-          <button
-            onClick={handleShareAsImage}
-            disabled={sharingImage}
-            className="py-3 px-4 rounded-2xl bg-white hover:bg-gray-50 border border-gray-200 text-[#181b28] font-semibold text-xs flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all"
-          >
-            <Share2 size={15} />
-            <span>{sharingImage ? 'Saving...' : 'Share Receipt'}</span>
-          </button>
+        <div className="space-y-2 pt-2">
+          <div className="grid grid-cols-2 gap-2.5">
+            <button
+              onClick={handleSaveAsImage}
+              disabled={savingImage}
+              className="py-3 px-3 rounded-2xl bg-white hover:bg-gray-50 border border-gray-200 text-[#181b28] font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all"
+            >
+              <ImageIcon size={15} className="text-[#6c1cf5]" />
+              <span>{savingImage ? 'Saving PNG...' : 'Save as Image'}</span>
+            </button>
+
+            <button
+              onClick={handleDownloadPDF}
+              disabled={downloadingPdf}
+              className="py-3 px-3 rounded-2xl bg-[#6c1cf5] hover:bg-[#5b15d4] text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition-all"
+            >
+              <FileText size={15} />
+              <span>{downloadingPdf ? 'Exporting PDF...' : 'Download PDF'}</span>
+            </button>
+          </div>
 
           <button
-            onClick={handleShareAsPDF}
-            disabled={sharingPdf}
-            className="py-3 px-4 rounded-2xl bg-[#6c1cf5] hover:bg-[#5b15d4] text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition-all"
+            onClick={handleShare}
+            disabled={sharing}
+            className="w-full py-2.5 px-4 rounded-2xl bg-white/70 hover:bg-white border border-gray-200 text-gray-700 font-semibold text-xs flex items-center justify-center gap-1.5 active:scale-98 transition-all"
           >
-            <Download size={15} />
-            <span>{sharingPdf ? 'Exporting...' : 'Download PDF'}</span>
+            <Share2 size={14} className="text-gray-500" />
+            <span>{sharing ? 'Preparing Share...' : 'Share Receipt with Others'}</span>
           </button>
         </div>
       </div>

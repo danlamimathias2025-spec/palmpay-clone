@@ -37,19 +37,20 @@ jobs:
       - name: Build Web Application
         run: npm run build
 
-      - name: Configure Capacitor Android Assets
+      - name: Setup and Initialize Capacitor Android Project
         run: |
-          if [ ! -d "android" ]; then
+          # If gradlew does not exist in android folder, recreate android platform freshly
+          if [ ! -f "android/gradlew" ]; then
+            echo "Gradle wrapper not found. Generating fresh Capacitor Android project..."
+            rm -rf android
             npx cap add android
           fi
-          npx cap copy android
-          npx cap sync android || true
+          # Synchronize web assets and native configuration
+          npx cap sync android
 
       - name: Make Gradle Wrapper Executable
         run: |
-          if [ -f "android/gradlew" ]; then
-            chmod +x android/gradlew
-          fi
+          chmod +x android/gradlew
 
       - name: Build APK with Gradle
         run: |

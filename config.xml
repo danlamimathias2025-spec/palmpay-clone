@@ -1,0 +1,76 @@
+<?xml version='1.0' encoding='utf-8'?>
+<widget id="com.palmpay.mobile" version="1.0.0" xmlns="http://www.w3.org/ns/widgets" xmlns:android="http://schemas.android.com/apk/res/android" xmlns:cdv="http://cordova.apache.org/ns/1.0">
+    <name>PalmPay</name>
+    <description>Simple, Fast, Secure Payments &amp; Finance</description>
+    <author email="support@palmpay.com" href="https://www.palmpay.com">
+        PalmPay Engineering Team
+    </author>
+    <content src="index.html" />
+
+    <!-- Whitelist & Network Security Rules -->
+    <access origin="*" />
+    <allow-navigation href="*" />
+    <allow-intent href="http://*/*" />
+    <allow-intent href="https://*/*" />
+    <allow-intent href="tel:*" />
+    <allow-intent href="sms:*" />
+    <allow-intent href="mailto:*" />
+    <allow-intent href="geo:*" />
+    <allow-intent href="market:*" />
+
+    <!-- Core App Preferences -->
+    <preference name="DisallowOverscroll" value="true" />
+    <preference name="Orientation" value="portrait" />
+    <preference name="Fullscreen" value="false" />
+    <preference name="BackgroundColor" value="0xff151618" />
+    <preference name="StatusBarBackgroundColor" value="#151618" />
+    <preference name="StatusBarStyle" value="lightcontent" />
+    <preference name="StatusBarOverlaysWebView" value="false" />
+    <preference name="NavigationBarBackgroundColor" value="#0b0d14" />
+    <preference name="NavigationBarLight" value="false" />
+    <preference name="KeepRunning" value="true" />
+    <preference name="AllowMixedContent" value="false" />
+    <preference name="ScrollEnabled" value="true" />
+
+    <!-- Android Specific Platform Configuration -->
+    <platform name="android">
+        <preference name="AndroidXEnabled" value="true" />
+        <preference name="GradlePluginKotlinEnabled" value="true" />
+        <preference name="android-minSdkVersion" value="22" />
+        <preference name="android-targetSdkVersion" value="34" />
+        <preference name="android-compileSdkVersion" value="34" />
+        <preference name="AutoHideSplashScreen" value="true" />
+        <preference name="SplashScreenDelay" value="3000" />
+        <preference name="ShowSplashScreenSpinner" value="false" />
+        <preference name="SplashMaintainAspectRatio" value="true" />
+        <preference name="FadeSplashScreen" value="true" />
+        <preference name="FadeSplashScreenDuration" value="300" />
+        <preference name="AndroidInsecureFileModeEnabled" value="true" />
+
+        <!-- Application Icons -->
+        <icon density="ldpi" src="public/icon-192.png" />
+        <icon density="mdpi" src="public/icon-192.png" />
+        <icon density="hdpi" src="public/icon-192.png" />
+        <icon density="xhdpi" src="public/icon-192.png" />
+        <icon density="xxhdpi" src="public/icon-512.png" />
+        <icon density="xxxhdpi" src="public/icon-512.png" />
+
+        <!-- Android Permissions -->
+        <config-file target="AndroidManifest.xml" parent="/*">
+            <uses-permission android:name="android.permission.INTERNET" />
+            <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+            <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+            <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+            <uses-permission android:name="android.permission.USE_FINGERPRINT" />
+            <uses-permission android:name="android.permission.VIBRATE" />
+            <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+        </config-file>
+    </platform>
+
+    <!-- Essential Cordova Plugins Recommended for Android APK -->
+    <plugin name="cordova-plugin-statusbar" spec="^4.0.0" />
+    <plugin name="cordova-plugin-splashscreen" spec="^6.0.2" />
+    <plugin name="cordova-plugin-whitelist" spec="^1.3.5" />
+    <plugin name="cordova-plugin-fingerprint-aio" spec="^6.0.2" />
+    <plugin name="cordova-plugin-vibration" spec="^3.1.1" />
+</widget>

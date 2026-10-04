@@ -49,6 +49,7 @@ import MoreServicesModal from './components/modals/MoreServicesModal';
 import CustomerSupportModal from './components/modals/CustomerSupportModal';
 import SecurityCenterModal from './components/modals/SecurityCenterModal';
 import ClaimRewardModal from './components/modals/ClaimRewardModal';
+import { useCordova } from './hooks/useCordova';
 
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
@@ -105,6 +106,43 @@ export default function App() {
   const [activeFlashAlert, setActiveFlashAlert] = useState<FlashAlertData | null>(null);
 
   const isInitialLoadRef = useRef(true);
+
+  // Native Android Hardware Back Button & Cordova lifecycle handling
+  useCordova({
+    onBackButton: () => {
+      // 1. Close active transaction receipt if open
+      if (selectedTransaction) {
+        setSelectedTransaction(null);
+        return true;
+      }
+      // 2. Close active modals if open
+      if (showTransferModal) { setShowTransferModal(false); return true; }
+      if (showToPalmPayModal) { setShowToPalmPayModal(false); return true; }
+      if (showAddFundsModal) { setShowAddFundsModal(false); return true; }
+      if (showAirtimeModal) { setShowAirtimeModal(false); return true; }
+      if (showDataModal) { setShowDataModal(false); return true; }
+      if (showBettingModal) { setShowBettingModal(false); return true; }
+      if (showElectricityModal) { setShowElectricityModal(false); return true; }
+      if (showReferModal) { setShowReferModal(false); return true; }
+      if (showCardsModal) { setShowCardsModal(false); return true; }
+      if (showInsuranceModal) { setShowInsuranceModal(false); return true; }
+      if (showMoreServicesModal) { setShowMoreServicesModal(false); return true; }
+      if (showSupportModal) { setShowSupportModal(false); return true; }
+      if (showSecurityModal) { setShowSecurityModal(false); return true; }
+      if (showNotifications) { setShowNotifications(false); return true; }
+      if (showHistoryView) { setShowHistoryView(false); return true; }
+      if (claimModalData) { setClaimModalData(null); return true; }
+      if (activeFlashAlert) { setActiveFlashAlert(null); return true; }
+
+      // 3. If on non-home tab, go back to home tab
+      if (activeTab !== 'home') {
+        setActiveTab('home');
+        return true;
+      }
+
+      return false; // allow default app exit on home tab
+    },
+  });
 
   // Request Notification Permissions on Mount
   useEffect(() => {

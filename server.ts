@@ -54,6 +54,27 @@ async function startServer() {
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
 
+  // Digital Asset Links for Android TWA verification to remove browser header/URL bar
+  app.get("/.well-known/assetlinks.json", (req, res) => {
+    const assetlinksPath = path.join(process.cwd(), "public", ".well-known", "assetlinks.json");
+    if (fs.existsSync(assetlinksPath)) {
+      res.setHeader("Content-Type", "application/json");
+      return res.sendFile(assetlinksPath);
+    }
+    return res.json([
+      {
+        relation: ["delegate_permission/common.handle_all_urls"],
+        target: {
+          namespace: "android_app",
+          package_name: "com.palmpay.mobile",
+          sha256_cert_fingerprints: [
+            "14:6D:E9:44:C5:4F:57:1D:69:D7:0E:26:03:6A:B9:32:4D:42:04:78:E8:4A:28:B4:DF:AE:F7:73:96:FA:F8:9F"
+          ]
+        }
+      }
+    ]);
+  });
+
   // API route for SMS
   app.post("/api/send-sms", async (req, res) => {
     const { phoneNumber, amount } = req.body;

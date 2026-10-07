@@ -1,4 +1,5 @@
 import { jsPDF } from 'jspdf';
+import html2canvas from 'html2canvas';
 import { PalmPayReceiptDetails } from './transactionFormat';
 
 /**
@@ -318,16 +319,42 @@ function wrapText(text: string, maxCharsPerLine: number): string[] {
  */
 export async function downloadReceiptAsImage(
   details: PalmPayReceiptDetails,
-  formattedAmount: string
+  formattedAmount: string,
+  element?: HTMLElement | null
 ): Promise<void> {
-  const canvas = drawReceiptToCanvas(details, formattedAmount, 3);
-  const dataURL = canvas.toDataURL('image/png');
+  let canvas: HTMLCanvasElement;
+  if (element) {
+    try {
+      canvas = await html2canvas(element, {
+        scale: 3,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+      });
+    } catch (e) {
+      console.warn('html2canvas capture error, falling back to drawReceiptToCanvas:', e);
+      canvas = drawReceiptToCanvas(details, formattedAmount, 3);
+    }
+  } else {
+    canvas = drawReceiptToCanvas(details, formattedAmount, 3);
+  }
+
+  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
+  if (!blob) throw new Error('Failed to generate image blob');
+
+  const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
-  link.href = dataURL;
+  link.href = url;
   link.download = `palmpay_receipt_${details.txId}.png`;
+  link.style.display = 'none';
   document.body.appendChild(link);
   link.click();
-  document.body.removeChild(link);
+
+  setTimeout(() => {
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, 1000);
 }
 
 /**
@@ -335,9 +362,27 @@ export async function downloadReceiptAsImage(
  */
 export async function downloadReceiptAsPDF(
   details: PalmPayReceiptDetails,
-  formattedAmount: string
+  formattedAmount: string,
+  element?: HTMLElement | null
 ): Promise<void> {
-  const canvas = drawReceiptToCanvas(details, formattedAmount, 3);
+  let canvas: HTMLCanvasElement;
+  if (element) {
+    try {
+      canvas = await html2canvas(element, {
+        scale: 3,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+      });
+    } catch (e) {
+      console.warn('html2canvas capture error, falling back to drawReceiptToCanvas:', e);
+      canvas = drawReceiptToCanvas(details, formattedAmount, 3);
+    }
+  } else {
+    canvas = drawReceiptToCanvas(details, formattedAmount, 3);
+  }
+
   const imgData = canvas.toDataURL('image/png');
 
   const pdf = new jsPDF({
@@ -350,27 +395,57 @@ export async function downloadReceiptAsPDF(
   const pageHeight = pdf.internal.pageSize.getHeight();
 
   // Center receipt card neatly on A4 page
-  const imgWidth = 140; // 140mm width card
+  const imgWidth = 145; // 145mm width card
   const imgHeight = (canvas.height * imgWidth) / canvas.width;
   const x = (pageWidth - imgWidth) / 2;
-  const y = Math.max(15, (pageHeight - imgHeight) / 2);
+  const y = Math.max(12, (pageHeight - imgHeight) / 2);
 
   // Add subtle background container on PDF
   pdf.setFillColor(244, 245, 250);
   pdf.rect(0, 0, pageWidth, pageHeight, 'F');
 
   pdf.addImage(imgData, 'PNG', x, y, imgWidth, imgHeight, undefined, 'FAST');
-  pdf.save(`palmpay_receipt_${details.txId}.pdf`);
+
+  // Generate Blob URL for 100% Android WebView & Mobile Browser compatibility
+  const pdfBlob = pdf.output('blob');
+  const url = URL.createObjectURL(pdfBlob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `palmpay_receipt_${details.txId}.pdf`;
+  link.style.display = 'none';
+  document.body.appendChild(link);
+  link.click();
+
+  setTimeout(() => {
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, 1000);
 }
 
 /**
- * Native share or file share via Web Share API with clipboard fallback.
+ * Native share or file share via Web Share API with download fallback.
  */
 export async function shareReceipt(
   details: PalmPayReceiptDetails,
-  formattedAmount: string
+  formattedAmount: string,
+  element?: HTMLElement | null
 ): Promise<{ success: boolean; method: 'web-share' | 'download' }> {
-  const canvas = drawReceiptToCanvas(details, formattedAmount, 3);
+  let canvas: HTMLCanvasElement;
+  if (element) {
+    try {
+      canvas = await html2canvas(element, {
+        scale: 3,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+      });
+    } catch (e) {
+      canvas = drawReceiptToCanvas(details, formattedAmount, 3);
+    }
+  } else {
+    canvas = drawReceiptToCanvas(details, formattedAmount, 3);
+  }
 
   // If Web Share API with files is supported
   if (typeof navigator !== 'undefined' && navigator.share) {
@@ -397,6 +472,6 @@ export async function shareReceipt(
   }
 
   // Fallback: download directly
-  await downloadReceiptAsImage(details, formattedAmount);
+  await downloadReceiptAsImage(details, formattedAmount, element);
   return { success: true, method: 'download' };
 }

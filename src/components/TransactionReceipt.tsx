@@ -56,7 +56,8 @@ export default function TransactionReceipt({
   const handleSaveAsImage = async () => {
     setSavingImage(true);
     try {
-      await downloadReceiptAsImage(details, formattedNum);
+      const activeElem = activeTab === 'app' ? receiptRef.current : slipRef.current;
+      await downloadReceiptAsImage(details, formattedNum, activeElem);
       showToast('Receipt saved as PNG image!');
     } catch (e) {
       console.error('Image export failed:', e);
@@ -69,7 +70,8 @@ export default function TransactionReceipt({
   const handleDownloadPDF = async () => {
     setDownloadingPdf(true);
     try {
-      await downloadReceiptAsPDF(details, formattedNum);
+      const activeElem = activeTab === 'app' ? receiptRef.current : slipRef.current;
+      await downloadReceiptAsPDF(details, formattedNum, activeElem);
       showToast('Receipt PDF downloaded!');
     } catch (e) {
       console.error('PDF export failed:', e);
@@ -82,7 +84,8 @@ export default function TransactionReceipt({
   const handleShare = async () => {
     setSharing(true);
     try {
-      const res = await shareReceipt(details, formattedNum);
+      const activeElem = activeTab === 'app' ? receiptRef.current : slipRef.current;
+      const res = await shareReceipt(details, formattedNum, activeElem);
       if (res.method === 'download') {
         showToast('Receipt image downloaded for sharing!');
       } else {

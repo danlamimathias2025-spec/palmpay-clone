@@ -48,6 +48,9 @@ jobs:
           # Synchronize web assets and native configuration
           npx cap sync android
 
+          # Inject official PalmPay Android launcher icons
+          node scripts/generate-android-icons.js
+
       - name: Make Gradle Wrapper Executable
         run: |
           chmod +x android/gradlew

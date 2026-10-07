@@ -214,8 +214,18 @@ export default function RegistrationScreen({
                 onClick={handleNextStep}
                 className="w-full py-4 rounded-2xl bg-[#7c1cf5] hover:bg-[#6813d1] text-white font-extrabold text-sm active:scale-95 transition-all shadow-lg flex items-center justify-center gap-1.5 mt-2.5 font-sans"
               >
-                <span>Sign Up</span>
+                <span>Continue to Details</span>
               </button>
+
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={onSwitchToLogin}
+                  className="w-full py-3 rounded-2xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 text-white/80 font-bold text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+                >
+                  <span>Already have an account? Log In</span>
+                </button>
+              </div>
             </div>
 
             {/* Invitation Code dropdown block */}

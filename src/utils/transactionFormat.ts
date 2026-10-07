@@ -241,8 +241,8 @@ export function ensureReceiptDetails(tx: any, currentUserName?: string, currentU
   let cleanSenderAcc = '';
   if (tx.senderAccount) {
     cleanSenderAcc = String(tx.senderAccount).replace(/\D/g, '');
-  } else if (!isIncoming) {
-    cleanSenderAcc = String(currentUserPhone || '08082076038').replace(/\D/g, '');
+  } else if (!isIncoming && currentUserPhone) {
+    cleanSenderAcc = String(currentUserPhone).replace(/\D/g, '');
   } else {
     // Generate deterministic masked account from senderName
     const h = hashSeed(senderName + 'sender');
@@ -251,12 +251,12 @@ export function ensureReceiptDetails(tx: any, currentUserName?: string, currentU
 
   const maskedSenderAccount = cleanSenderAcc.length >= 7
     ? `${cleanSenderAcc.slice(0, 3)}***${cleanSenderAcc.slice(-4)}`
-    : '080***6038';
+    : (cleanSenderAcc ? `${cleanSenderAcc.slice(0, 3)}***` : '080***0000');
 
-  const cleanRecAcc = String(recipientAccount).replace(/\D/g, '');
+  const cleanRecAcc = String(recipientAccount || '').replace(/\D/g, '');
   const maskedRecipientAccount = cleanRecAcc.length >= 7
     ? `${cleanRecAcc.slice(0, 3)}***${cleanRecAcc.slice(-4)}`
-    : '090***6059';
+    : (cleanRecAcc ? `${cleanRecAcc.slice(0, 3)}***` : '090***0000');
 
   return {
     txId,

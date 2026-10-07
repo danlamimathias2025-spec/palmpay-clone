@@ -34,7 +34,7 @@ export default function AddFundsModal({
   const [createdTx, setCreatedTx] = useState<any>(null);
   const [copiedAcc, setCopiedAcc] = useState(false);
 
-  const rawAccountNumber = userProfile.accountNumber || userProfile.phoneNumber || '7073386737';
+  const rawAccountNumber = userProfile.accountNumber || (userProfile.phoneNumber ? normalizePalmPayAccountNumber(userProfile.phoneNumber) : '');
   const receivingAcc = normalizePalmPayAccountNumber(rawAccountNumber);
 
   // Format account number with spaces as shown: "707 338 6737"
@@ -82,7 +82,7 @@ export default function AddFundsModal({
     const authenticTxId = generatePalmPayTransactionId(now, txRef);
     const authenticSessionId = generatePalmPaySessionId(now, '999991', txRef);
     const recipientDisplayName = userProfile.fullName || userProfile.userName || 'PalmPay User';
-    const recipientAcc = userProfile.accountNumber || userProfile.phoneNumber || '8082076038';
+    const recipientAcc = receivingAcc;
 
     const authenticRemark = generatePalmPayRemark({
       isIncoming: true,
@@ -297,7 +297,7 @@ export default function AddFundsModal({
                 </button>
                 <button
                   type="button"
-                  onClick={() => alert(`PalmPay Detail Shared:\nAccount: ${receivingAcc}\nName: ${userProfile.fullName || 'Mathias Danlami'}`)}
+                  onClick={() => alert(`PalmPay Detail Shared:\nAccount: ${receivingAcc}\nName: ${userProfile.fullName || userProfile.userName || 'PalmPay User'}`)}
                   className="flex-1 py-3.5 rounded-2xl bg-[#7c1cf5] hover:bg-[#6813d1] text-white font-bold text-xs active:scale-95 transition-all text-center font-sans"
                 >
                   Share Detail

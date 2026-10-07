@@ -22,7 +22,7 @@ export default function SecurityCenterModal({ onClose, userProfile }: SecurityCe
   const [bioEnabled, setBioEnabled] = useState(initialSettings.enabled);
   const [threshold, setThreshold] = useState(initialSettings.highValueThreshold);
 
-  const phone = userProfile?.phoneNumber || '08082076038';
+  const phone = userProfile?.phoneNumber || '';
 
   const handleUpdatePin = async (e: React.FormEvent) => {
     e.preventDefault();

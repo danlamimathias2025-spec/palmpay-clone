@@ -3,11 +3,16 @@ import { X, Headphones, Send, MessageSquare, Phone, HelpCircle } from 'lucide-re
 
 interface CustomerSupportModalProps {
   onClose: () => void;
+  userProfile?: {
+    fullName?: string;
+    userName?: string;
+  };
 }
 
-export default function CustomerSupportModal({ onClose }: CustomerSupportModalProps) {
+export default function CustomerSupportModal({ onClose, userProfile }: CustomerSupportModalProps) {
+  const displayName = userProfile?.userName || userProfile?.fullName?.split(' ')[0] || 'Valued Customer';
   const [messages, setMessages] = useState([
-    { sender: 'bot', text: 'Hello Mathias! Welcome to PalmPay 24/7 Live Care. How can we help you today?' },
+    { sender: 'bot', text: `Hello ${displayName}! Welcome to PalmPay 24/7 Live Care. How can we help you today?` },
   ]);
   const [input, setInput] = useState('');
 

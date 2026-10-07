@@ -194,8 +194,8 @@ export default function LoginScreen({
               )}
             </div>
 
-            {/* Next / Sign Up Button Row */}
-            <div className="relative w-full space-y-2">
+            {/* Next / Log In Button Row */}
+            <div className="relative w-full space-y-2.5">
               {/* Floating Free Airtime Yellow Banner Bubble */}
               <div className="absolute -top-3.5 right-0.5 z-10 flex items-center gap-1.5 bg-[#fff8e1] border border-[#ffe082] text-[#f57f17] text-[10px] font-black px-2 py-1 rounded-xl shadow-md select-none transform hover:scale-105 transition-all">
                 <Gift size={11} className="text-[#f57f17] shrink-0" />
@@ -207,7 +207,7 @@ export default function LoginScreen({
                 onClick={handleNextStep}
                 className="w-full py-4 rounded-2xl bg-[#7c1cf5] hover:bg-[#6813d1] text-white font-extrabold text-sm active:scale-95 transition-all shadow-lg flex items-center justify-center gap-1.5 mt-2.5 font-sans"
               >
-                <span>Sign Up / Next</span>
+                <span>Log In / Next</span>
               </button>
 
               {/* Fast Biometric Login Button */}
@@ -221,6 +221,19 @@ export default function LoginScreen({
                   <span>Fast Biometric Login (Touch ID / Face ID)</span>
                 </button>
               )}
+
+              {/* Explicit Sign Up button for new accounts */}
+              <div className="pt-2 border-t border-white/10">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onSwitchToRegister();
+                  }}
+                  className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600/20 to-purple-600/20 hover:from-emerald-600/30 hover:to-purple-600/30 border border-purple-500/40 text-purple-200 font-bold text-xs flex items-center justify-center gap-2 active:scale-95 transition-all shadow-md"
+                >
+                  <span>New to PalmPay? Open an Account (Sign Up)</span>
+                </button>
+              </div>
             </div>
 
             {/* Invitation Code dropdown block */}
@@ -309,12 +322,22 @@ export default function LoginScreen({
             </button>
 
             {/* Toggle back to phone */}
-            <button
-              onClick={() => setStep('phone')}
-              className="text-xs text-purple-300 font-bold hover:underline select-none mt-1"
-            >
-              Change Mobile Number
-            </button>
+            <div className="flex items-center justify-between text-xs font-bold pt-1">
+              <button
+                type="button"
+                onClick={() => setStep('phone')}
+                className="text-purple-300 hover:text-white transition-colors"
+              >
+                Change Number
+              </button>
+              <button
+                type="button"
+                onClick={() => onSwitchToRegister()}
+                className="text-emerald-400 hover:text-emerald-300 transition-colors"
+              >
+                Open New Account
+              </button>
+            </div>
           </div>
         )}
       </div>

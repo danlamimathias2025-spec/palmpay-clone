@@ -125,6 +125,53 @@ export default function App() {
     requestNotificationPermission().catch(console.warn);
   }, []);
 
+  // 1. Session Restoration on Mount for the currently authenticated user
+  useEffect(() => {
+    const restoreSession = async () => {
+      const activePhone = localStorage.getItem('palmpay_active_session_phone');
+      if (!activePhone) return;
+
+      try {
+        await ensureFirebaseAuth();
+        const canonical = normalizePhoneNumber(activePhone);
+        let snap = await getDoc(doc(db, 'users', canonical));
+        if (!snap.exists() && activePhone !== canonical) {
+          snap = await getDoc(doc(db, 'users', activePhone));
+        }
+
+        if (snap.exists()) {
+          const data = snap.data();
+          const docId = snap.id;
+          const safePhone = data.phoneNumber || docId;
+          const safeAcc = normalizePalmPayAccountNumber(data.accountNumber || safePhone);
+          const userBal = typeof data.balance === 'number' ? data.balance : Number(data.balance) || 0;
+
+          isInitialLoadRef.current = true;
+          setUserProfile({
+            fullName: data.fullName || '',
+            userName: data.userName || data.fullName?.split(' ')[0] || 'User',
+            phoneNumber: docId,
+            accountNumber: safeAcc,
+            pin: data.pin || '',
+            imageUrl: data.imageUrl || data.photoURL || '',
+            photoURL: data.photoURL || data.imageUrl || '',
+            avatarUrl: data.avatarUrl || data.imageUrl || '',
+            balance: userBal,
+            tier: data.tier || 'Tier 2',
+          });
+          setBalance(userBal);
+          setIsLoggedIn(true);
+        } else {
+          localStorage.removeItem('palmpay_active_session_phone');
+        }
+      } catch (err) {
+        console.warn('Session restoration error:', err);
+      }
+    };
+
+    restoreSession();
+  }, []);
+
   // Firebase Auth & Firestore real-time sync - strictly isolated to current authenticated user
   useEffect(() => {
     // Ensure Firebase Auth session
@@ -553,7 +600,11 @@ export default function App() {
         <LoginScreen
           onBiometricLogin={async (phone) => {
             await ensureFirebaseAuth();
-            const cleanPhone = (phone || localStorage.getItem('palmpay_last_login_phone') || '08082076038').trim().replace(/\D/g, '');
+            const cleanPhone = (phone || localStorage.getItem('palmpay_active_session_phone') || localStorage.getItem('palmpay_last_login_phone') || '').trim().replace(/\D/g, '');
+            if (!cleanPhone) {
+              alert('Please enter your mobile phone number first.');
+              return;
+            }
             const canonicalPhone = normalizePhoneNumber(cleanPhone);
             const acc10 = generatePalmPayAccountNumber(cleanPhone);
 
@@ -572,11 +623,11 @@ export default function App() {
                   snap = qSnap.docs[0];
                 }
               }
-              if (!snap.exists()) {
-                // If not found yet, try querying all users
-                const allSnap = await getDocs(collection(db, 'users'));
-                if (!allSnap.empty) {
-                  snap = allSnap.docs[0];
+              if (!snap.exists() && acc10) {
+                const qAcc = query(collection(db, 'users'), where('accountNumber', '==', acc10));
+                const qSnap = await getDocs(qAcc);
+                if (!qSnap.empty) {
+                  snap = qSnap.docs[0];
                 }
               }
 
@@ -594,16 +645,20 @@ export default function App() {
                   phoneNumber: userDocId,
                   accountNumber: safeAcc,
                   pin: data.pin || '',
-                  imageUrl: data.imageUrl || '',
+                  imageUrl: data.imageUrl || data.photoURL || '',
+                  photoURL: data.photoURL || data.imageUrl || '',
+                  avatarUrl: data.avatarUrl || data.imageUrl || '',
                   balance: userBal,
+                  tier: data.tier || 'Tier 2',
                 });
                 setBalance(userBal);
 
+                localStorage.setItem('palmpay_active_session_phone', userDocId);
                 localStorage.setItem('palmpay_last_login_phone', userDocId);
                 localStorage.setItem('palmpay_last_login_time', Date.now().toString());
                 setIsLoggedIn(true);
               } else {
-                alert('Account not found. Please sign up or login with your mobile number.');
+                alert('Account not found. Please sign up or login with your registered mobile number.');
               }
             } catch (err) {
               console.error('Biometric login error:', err);
@@ -660,10 +715,18 @@ export default function App() {
                   phoneNumber: userDocId,
                   accountNumber: safeAcc,
                   pin: data.pin || '',
-                  imageUrl: data.imageUrl || '',
+                  imageUrl: data.imageUrl || data.photoURL || '',
+                  photoURL: data.photoURL || data.imageUrl || '',
+                  avatarUrl: data.avatarUrl || data.imageUrl || '',
                   balance: userBal,
+                  tier: data.tier || 'Tier 2',
                 });
                 setBalance(userBal);
+
+                localStorage.setItem('palmpay_active_session_phone', userDocId);
+                localStorage.setItem('palmpay_last_login_phone', userDocId);
+                localStorage.setItem('palmpay_last_login_time', Date.now().toString());
+                setIsLoggedIn(true);
 
                 // Immediately load transactions from Firestore (subcollection & root)
                 try {
@@ -809,11 +872,15 @@ export default function App() {
                 accountNumber: acc10,
                 pin: newProfile.pin,
                 imageUrl: '',
+                photoURL: '',
+                avatarUrl: '',
                 balance: 0,
+                tier: 'Tier 1',
               });
               setBalance(0);
 
-              // Save last login phone & timestamp
+              // Save active session phone & timestamp
+              localStorage.setItem('palmpay_active_session_phone', canonicalPhone);
               localStorage.setItem('palmpay_last_login_phone', canonicalPhone);
               localStorage.setItem('palmpay_last_login_time', Date.now().toString());
               setIsLoggedIn(true);
@@ -1007,12 +1074,16 @@ export default function App() {
                     accountNumber: '',
                     pin: '',
                     imageUrl: '',
+                    photoURL: '',
+                    avatarUrl: '',
                     balance: 0,
+                    tier: 'Tier 1',
                   });
                   setTransactions([]);
                   setBalance(0);
                   setActiveFlashAlert(null);
                   isInitialLoadRef.current = true;
+                  localStorage.removeItem('palmpay_active_session_phone');
                   localStorage.removeItem('palmpay_last_login_phone');
                   localStorage.removeItem('palmpay_last_login_time');
                   localStorage.removeItem('palmpay_pending_inapp_alert');
@@ -1194,7 +1265,10 @@ export default function App() {
         )}
 
         {showSupportModal && (
-          <CustomerSupportModal onClose={() => setShowSupportModal(false)} />
+          <CustomerSupportModal
+            onClose={() => setShowSupportModal(false)}
+            userProfile={userProfile}
+          />
         )}
 
         {showSecurityModal && (

@@ -8,6 +8,7 @@ interface CardsModalProps {
 
 export default function CardsModal({ onClose, userProfile }: CardsModalProps) {
   const [showCardNumber, setShowCardNumber] = useState(false);
+  const cardSuffix = (userProfile.accountNumber || userProfile.phoneNumber || '').replace(/\D/g, '').slice(-4).padStart(4, '0');
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
@@ -29,8 +30,8 @@ export default function CardsModal({ onClose, userProfile }: CardsModalProps) {
           <div className="flex items-center gap-2 mb-4">
             <span className="text-lg font-mono tracking-widest">
               {showCardNumber
-                ? `5061 9845 2314 ${(userProfile.accountNumber || userProfile.phoneNumber || '8082').slice(-4)}`
-                : `•••• •••• •••• ${(userProfile.accountNumber || userProfile.phoneNumber || '8082').slice(-4)}`}
+                ? `5061 9845 2314 ${cardSuffix}`
+                : `•••• •••• •••• ${cardSuffix}`}
             </span>
             <button onClick={() => setShowCardNumber(!showCardNumber)} className="text-white/80 hover:text-white p-1">
               {showCardNumber ? <EyeOff size={15} /> : <Eye size={15} />}

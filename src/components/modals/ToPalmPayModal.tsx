@@ -34,6 +34,7 @@ export default function ToPalmPayModal({
   const [showSuccess, setShowSuccess] = useState(false);
   const [showBiometricConfirm, setShowBiometricConfirm] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [isAutoResolved, setIsAutoResolved] = useState(false);
 
   // 1. Resolve PalmPay User by Account Number (10 digits) or Phone Number (11 digits)
   const resolvePalmPayUser = async (inputVal: string) => {
@@ -87,6 +88,7 @@ export default function ToPalmPayModal({
 
       if (foundUserData && foundUserData.fullName) {
         setRecipientName(foundUserData.fullName.toUpperCase());
+        setIsAutoResolved(true);
         setRecipientUserId(foundUserId);
         setRecipientAccountNumber(foundUserData.accountNumber || clean.slice(-10));
         setVerifying(false);
@@ -104,22 +106,17 @@ export default function ToPalmPayModal({
         const data = await res.json();
         if (data.account_name) {
           setRecipientName(data.account_name.toUpperCase());
+          setIsAutoResolved(true);
           setRecipientUserId(clean);
           setRecipientAccountNumber(clean.slice(-10));
         } else {
-          setRecipientName('VERIFIED PALMPAY USER');
-          setRecipientUserId(clean);
-          setRecipientAccountNumber(clean.slice(-10));
+          setIsAutoResolved(false);
         }
       } else {
-        setRecipientName('VERIFIED PALMPAY USER');
-        setRecipientUserId(clean);
-        setRecipientAccountNumber(clean.slice(-10));
+        setIsAutoResolved(false);
       }
-    } catch (e) {
-      setRecipientName('VERIFIED PALMPAY USER');
-      setRecipientUserId(clean);
-      setRecipientAccountNumber(clean.slice(-10));
+    } catch {
+      setIsAutoResolved(false);
     } finally {
       setVerifying(false);
     }
@@ -131,7 +128,7 @@ export default function ToPalmPayModal({
     if (clean.length === 10 || clean.length === 11) {
       resolvePalmPayUser(clean);
     } else {
-      setRecipientName('');
+      setIsAutoResolved(false);
       setRecipientUserId(null);
       setRecipientAccountNumber('');
     }
@@ -139,6 +136,10 @@ export default function ToPalmPayModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!recipientName.trim()) {
+      alert('Please enter or verify the recipient full name.');
+      return;
+    }
     const num = Number(amount);
     if (num <= 0) {
       alert('Please enter a valid transfer amount.');
@@ -367,7 +368,22 @@ export default function ToPalmPayModal({
           <div>
             <div className="flex justify-between items-center mb-1">
               <label className="text-xs text-white/80 font-medium">Recipient PalmPay Account / Funds ID</label>
-              <span className="text-[10px] text-purple-300">10 or 11 Digits</span>
+              {(recipientInput.length === 10 || recipientInput.length === 11) && (
+                <button
+                  type="button"
+                  onClick={() => resolvePalmPayUser(recipientInput)}
+                  disabled={verifying}
+                  className="text-[11px] text-purple-300 hover:text-purple-200 font-medium flex items-center gap-1 transition-colors disabled:opacity-50"
+                >
+                  {verifying ? (
+                    <>
+                      <Loader2 size={11} className="animate-spin" /> Verifying...
+                    </>
+                  ) : (
+                    'Verify with Paystack'
+                  )}
+                </button>
+              )}
             </div>
             <input
               type="text"
@@ -381,20 +397,36 @@ export default function ToPalmPayModal({
             {verifying && (
               <div className="flex items-center gap-1.5 text-[11px] text-purple-300 mt-2 font-medium animate-pulse">
                 <Loader2 size={13} className="animate-spin" />
-                <span>Verifying PalmPay account...</span>
-              </div>
-            )}
-
-            {recipientName && !verifying && (
-              <div className="p-2.5 mt-2 bg-emerald-500/15 border border-emerald-500/30 rounded-xl flex items-center gap-2 text-xs text-emerald-300 font-bold animate-in fade-in duration-200">
-                <UserCheck size={16} className="text-emerald-400 shrink-0" />
-                <span className="truncate">{recipientName}</span>
+                <span>Checking Paystack & PalmPay directory...</span>
               </div>
             )}
 
             {errorMsg && (
               <p className="text-[11px] text-rose-400 mt-1">{errorMsg}</p>
             )}
+          </div>
+
+          {/* Recipient Full Name */}
+          <div>
+            <div className="flex justify-between items-center mb-1">
+              <label className="text-xs text-white/80 font-medium">Recipient Full Name</label>
+              {isAutoResolved && (
+                <span className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1">
+                  <UserCheck size={12} /> Verified PalmPay User
+                </span>
+              )}
+            </div>
+            <input
+              type="text"
+              placeholder="Enter Recipient Name"
+              value={recipientName}
+              onChange={(e) => {
+                setIsAutoResolved(false);
+                setRecipientName(e.target.value.toUpperCase());
+              }}
+              required
+              className="w-full p-3 rounded-xl mirror-glass border border-white/10 text-white font-sans text-sm focus:outline-none focus:border-purple-400 uppercase font-medium placeholder-white/30 tracking-wide"
+            />
           </div>
 
           {/* Amount */}

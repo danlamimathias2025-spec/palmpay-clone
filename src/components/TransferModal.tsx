@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Check, Landmark, ShieldCheck, ArrowRight } from 'lucide-react';
+import { X, Check, Landmark, ShieldCheck, ArrowRight, Loader2 } from 'lucide-react';
 import { db } from '../lib/firebase';
 import { doc, addDoc, collection, setDoc, updateDoc, increment, serverTimestamp, getDoc } from 'firebase/firestore';
 import { formatNaira } from '../utils/format';
@@ -37,6 +37,7 @@ export default function TransferModal({
   const [loadingBanks, setLoadingBanks] = useState(true);
   const [verifying, setVerifying] = useState(false);
   const [accountError, setAccountError] = useState('');
+  const [accountResolved, setAccountResolved] = useState(false);
   const [showBiometricConfirm, setShowBiometricConfirm] = useState(false);
 
   useEffect(() => {
@@ -85,14 +86,21 @@ export default function TransferModal({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ accountNumber, bankCode }),
       });
-      if (res.ok) {
-        const data = await res.json();
-        setFormData((prev) => ({ ...prev, accountName: data.account_name }));
+      const data = await res.json();
+      if (res.ok && data?.account_name) {
+        setFormData((prev) => ({ ...prev, accountName: data.account_name.toUpperCase() }));
+        setAccountResolved(true);
       } else {
-        setFormData((prev) => ({ ...prev, accountName: 'Verified Recipient' }));
+        setAccountResolved(false);
+        if (!formData.accountName) {
+          setAccountError(data?.message || 'Could not auto-verify name. Please type beneficiary name.');
+        }
       }
     } catch {
-      setFormData((prev) => ({ ...prev, accountName: 'Verified Recipient' }));
+      setAccountResolved(false);
+      if (!formData.accountName) {
+        setAccountError('Could not auto-verify name. Please type beneficiary name.');
+      }
     } finally {
       setVerifying(false);
     }
@@ -119,6 +127,10 @@ export default function TransferModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.accountName.trim()) {
+      alert('Please enter or verify the beneficiary account name.');
+      return;
+    }
     const amount = Number(formData.amount);
 
     if (amount <= 0) {
@@ -327,7 +339,25 @@ export default function TransferModal({
 
           {/* Account Number */}
           <div>
-            <label className="text-xs text-white/70 block mb-1">10-Digit Account Number</label>
+            <div className="flex justify-between items-center mb-1">
+              <label className="text-xs text-white/70 block">10-Digit Account Number</label>
+              {formData.accountNumber.length === 10 && formData.bankCode && (
+                <button
+                  type="button"
+                  onClick={() => resolveAccount(formData.accountNumber, formData.bankCode)}
+                  disabled={verifying}
+                  className="text-[11px] text-purple-400 hover:text-purple-300 font-medium flex items-center gap-1 transition-colors disabled:opacity-50"
+                >
+                  {verifying ? (
+                    <>
+                      <Loader2 size={11} className="animate-spin" /> Verifying...
+                    </>
+                  ) : (
+                    'Verify with Paystack'
+                  )}
+                </button>
+              )}
+            </div>
             <input
               type="text"
               maxLength={10}
@@ -337,13 +367,31 @@ export default function TransferModal({
               required
               className="w-full p-3 rounded-xl mirror-glass border border-white/10 text-white font-sans text-sm focus:outline-none focus:border-purple-400 tracking-wider"
             />
-            {verifying && <p className="text-[11px] text-purple-400 mt-1">Verifying account name...</p>}
-            {accountError && <p className="text-[11px] text-rose-400 mt-1">{accountError}</p>}
-            {formData.accountName && (
-              <p className="text-xs text-emerald-400 font-bold mt-1.5 flex items-center gap-1">
-                <Check size={14} /> {formData.accountName}
-              </p>
-            )}
+            {verifying && <p className="text-[11px] text-purple-400 mt-1">Checking Paystack directory...</p>}
+            {accountError && <p className="text-[11px] text-amber-300 mt-1">{accountError}</p>}
+          </div>
+
+          {/* Beneficiary Account Name */}
+          <div>
+            <div className="flex justify-between items-center mb-1">
+              <label className="text-xs text-white/70 block">Beneficiary Account Name</label>
+              {accountResolved && (
+                <span className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1">
+                  <Check size={12} /> Verified Name
+                </span>
+              )}
+            </div>
+            <input
+              type="text"
+              placeholder="Recipient Full Name"
+              value={formData.accountName}
+              onChange={(e) => {
+                setAccountResolved(false);
+                setFormData((prev) => ({ ...prev, accountName: e.target.value.toUpperCase() }));
+              }}
+              required
+              className="w-full p-3 rounded-xl mirror-glass border border-white/10 text-white font-sans text-sm focus:outline-none focus:border-purple-400 uppercase font-medium placeholder-white/30 tracking-wide"
+            />
           </div>
 
           {/* Amount */}

@@ -233,72 +233,58 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     }
   }
 
-  const palmpayDirectory: Record<string, string> = {
-    "08082076038": "Mathias Danlami",
-    "8082076038": "Mathias Danlami",
-    "08135469691": "Peace Danlami",
-    "8135469691": "Peace Danlami",
-    "09022856059": "Shekwolo danlami",
-    "9022856059": "Shekwolo danlami",
-    "08012345678": "PEACE DANLAMI",
-    "8012345678": "PEACE DANLAMI",
-    "09087654321": "JOHN JAMES AYAKA",
-    "08123456789": "ABUBAKAR GARBA",
-    "08034567890": "TUKUR SAHABI MUHAMMAD",
-    "07011223344": "CHINONSO OKONKWO",
-    "08099887766": "AISHA BELLO YUSUF",
-    "09012345678": "OLUWASEUN ADEBAYO",
-    "08187654321": "EMMANUEL CHIDIEBERE",
-  };
+  // 2. Paystack resolution for PalmPay accounts
+  const apiKey =
+    process.env.PAYSTACK_SECRET_KEY ||
+    process.env.PAYSTACK_API_KEY ||
+    process.env.PAYSTACK_KEY ||
+    process.env.PAYSTACK ||
+    process.env.BANK_API_KEY ||
+    process.env.VITE_BANK_API_KEY ||
+    process.env.VITE_PAYSTACK_SECRET_KEY ||
+    "";
 
-  if (palmpayDirectory[acc10] || palmpayDirectory[phone11]) {
-    const dirName = palmpayDirectory[acc10] || palmpayDirectory[phone11];
-    res.writeHead(200, { "Content-Type": "application/json" });
-    return res.end(
-      JSON.stringify({
-        success: true,
-        status: true,
-        message: "Account resolved successfully",
-        account_name: dirName,
-        account_number: acc10,
-        bank_name: "PalmPay",
-        bank_code: "999991",
-        data: {
-          account_number: acc10,
-          account_name: dirName,
-          bank_code: "999991",
-          bank_id: 999991,
-          bank_name: "PalmPay",
-        },
-      })
-    );
+  if (apiKey && acc10.length === 10) {
+    for (const code of ["999991", "100033"]) {
+      try {
+        const response = await fetch(
+          `https://api.paystack.co/bank/resolve?account_number=${acc10}&bank_code=${code}`,
+          {
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+        const data = await response.json();
+        if (response.ok && data?.status && data?.data?.account_name) {
+          res.writeHead(200, { "Content-Type": "application/json" });
+          return res.end(
+            JSON.stringify({
+              success: true,
+              status: true,
+              message: "Account resolved successfully via Paystack",
+              account_name: data.data.account_name,
+              account_number: acc10,
+              bank_name: "PalmPay",
+              bank_code: code,
+              data: data.data,
+            })
+          );
+        }
+      } catch (err) {
+        console.warn("Vercel PalmPay Paystack error:", err);
+      }
+    }
   }
 
-  const firstNames = ["IBRAHIM", "BLESSING", "CHINEDU", "AMINA", "OLUWASEUN", "KELECHI", "USMAN", "GRACE", "FATIMA", "SAMUEL", "ZAINAB", "CHUKWUDI"];
-  const lastNames = ["DANLAMI", "OKAFOR", "ADEYEMI", "GARBA", "EZE", "MUSA", "BELLO", "OKONKWO", "YAKUBU", "BALOGUN", "SULEIMAN", "NWOSU"];
-
-  const hash = acc10.split("").reduce((acc: number, digit: string) => acc + (parseInt(digit, 10) || 0), 0);
-  const firstName = firstNames[hash % firstNames.length];
-  const lastName = lastNames[(hash * 7) % lastNames.length];
-  const resolvedName = `${firstName} ${lastName}`;
-
-  res.writeHead(200, { "Content-Type": "application/json" });
+  res.writeHead(404, { "Content-Type": "application/json" });
   return res.end(
     JSON.stringify({
-      success: true,
-      status: true,
-      message: "Account resolved successfully",
-      account_name: resolvedName,
-      account_number: acc10,
-      bank_name: "PalmPay",
-      bank_code: "999991",
-      data: {
-        account_number: acc10,
-        account_name: resolvedName,
-        bank_code: "999991",
-        bank_id: 999991,
-        bank_name: "PalmPay",
-      },
+      success: false,
+      status: false,
+      error: "Account not verified",
+      message: `Account number ${acc10} not found on PalmPay. Please enter beneficiary name manually.`,
     })
   );
 }

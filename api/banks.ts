@@ -17,11 +17,16 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
   }
 
   const getBankApiKey = () => {
-    return process.env.BANK_API_KEY || 
-           process.env.VITE_BANK_API_KEY || 
-           process.env.PAYSTACK_SECRET_KEY || 
-           process.env.PAYSTACK_KEY || 
-           "";
+    return (
+      process.env.PAYSTACK_SECRET_KEY ||
+      process.env.PAYSTACK_API_KEY ||
+      process.env.PAYSTACK_KEY ||
+      process.env.PAYSTACK ||
+      process.env.BANK_API_KEY ||
+      process.env.VITE_BANK_API_KEY ||
+      process.env.VITE_PAYSTACK_SECRET_KEY ||
+      ""
+    ).trim();
   };
 
   const apiKey = getBankApiKey();

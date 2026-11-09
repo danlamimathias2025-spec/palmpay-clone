@@ -1,5 +1,6 @@
 import { ArrowDownLeft, ArrowUpRight, ReceiptText } from 'lucide-react';
 import { formatNaira } from '../utils/format';
+import BankLogo from './BankLogo';
 
 export default function RecentTransactions({ transactions, onSelect, sortBy, setSortBy }: { transactions: any[], onSelect: (t: any) => void, sortBy: string, setSortBy: (s: any) => void }) {
   if (transactions.length === 0) {
@@ -38,11 +39,15 @@ export default function RecentTransactions({ transactions, onSelect, sortBy, set
         {transactions.map((t, index) => (
           <div key={`${t.id || 'unknown'}-${index}`} className="flex items-center justify-between cursor-pointer" onClick={() => onSelect(t)}>
             <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-full ${t.type === 'credit' ? 'bg-green-100 dark:bg-green-900/30' : 'bg-red-100 dark:bg-red-900/30'}`}>
-                {t.type === 'credit' ? <ArrowDownLeft size={16} className="text-green-600 dark:text-green-400" /> : <ArrowUpRight size={16} className="text-red-600 dark:text-red-400" />}
-              </div>
+              <BankLogo
+                bank={t.bankName || t.senderBank || (t.type === 'transfer' ? t.recipient : 'PalmPay')}
+                size="md"
+                rounded="full"
+              />
               <div>
-                <p className="text-sm font-medium text-gray-900 dark:text-white">{t.type === 'transfer' ? `To: ${t.recipient}` : 'Incoming Funds'}</p>
+                <p className="text-sm font-medium text-gray-900 dark:text-white truncate max-w-[190px]">
+                  {t.type === 'transfer' ? `To: ${t.recipient}` : t.senderName ? `From: ${t.senderName}` : 'Incoming Funds'}
+                </p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">{t.timestamp ? new Date(t.timestamp.seconds * 1000).toLocaleDateString() : 'Pending'}</p>
               </div>
             </div>

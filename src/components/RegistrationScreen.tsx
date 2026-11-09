@@ -145,12 +145,15 @@ export default function RegistrationScreen({
         >
           <ArrowLeft size={22} />
         </button>
-        <button
-          onClick={() => alert('Support line active')}
-          className="p-1 rounded-full hover:bg-white/5 active:scale-95 transition-all text-white"
+        <a
+          href="https://wa.me/2349027262079?text=Hello%20PalmPay%20Customer%20Care%2C%20I%20need%20assistance%20with%20registration"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="p-1 rounded-full hover:bg-white/5 active:scale-95 transition-all text-white flex items-center gap-1"
+          title="Customer Care (+2349027262079)"
         >
           <Headphones size={22} />
-        </button>
+        </a>
       </div>
 
       {/* Main Form Block */}

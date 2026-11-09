@@ -6,6 +6,7 @@ import { normalizePalmPayAccountNumber } from '../utils/account';
 import { formatNaira } from '../utils/format';
 import { generatePalmPayTransactionId, generatePalmPaySessionId, generatePalmPayRemark } from '../utils/transactionFormat';
 import LoadingExecutionOverlay from './LoadingExecutionOverlay';
+import BankLogo from './BankLogo';
 
 interface AddFundsModalProps {
   balance: number;
@@ -180,7 +181,10 @@ export default function AddFundsModal({
 
             <div className="flex justify-between items-center">
               <span className="text-white/60">Sending Bank</span>
-              <span className="text-white/90">{createdTx.senderBank}</span>
+              <div className="flex items-center gap-1.5 text-white/90">
+                <BankLogo bank={createdTx.senderBank} size="xs" />
+                <span>{createdTx.senderBank}</span>
+              </div>
             </div>
 
             <div className="flex justify-between items-center">

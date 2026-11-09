@@ -638,6 +638,9 @@ export default function App() {
                 const safeAcc = normalizePalmPayAccountNumber(data.accountNumber || safePhone);
                 const userBal = typeof data.balance === 'number' ? data.balance : Number(data.balance) || 0;
 
+                // Isolate session completely
+                setTransactions([]);
+                setBalance(userBal);
                 isInitialLoadRef.current = true;
                 setUserProfile({
                   fullName: data.fullName || '',
@@ -651,23 +654,26 @@ export default function App() {
                   balance: userBal,
                   tier: data.tier || 'Tier 2',
                 });
-                setBalance(userBal);
 
                 localStorage.setItem('palmpay_active_session_phone', userDocId);
                 localStorage.setItem('palmpay_last_login_phone', userDocId);
                 localStorage.setItem('palmpay_last_login_time', Date.now().toString());
                 setIsLoggedIn(true);
               } else {
-                alert('Account not found. Please sign up or login with your registered mobile number.');
+                alert(`Account not found. The mobile number (+234 ${cleanPhone}) is not registered on PalmPay. Please tap 'Open an Account (Sign Up)' to register.`);
               }
             } catch (err) {
               console.error('Biometric login error:', err);
-              alert('Biometric sign in failed. Please use your 6-digit password.');
+              alert('Biometric sign in failed. Please enter your 6-digit password.');
             }
           }}
           onLogin={async (phone, password) => {
             await ensureFirebaseAuth();
             const cleanPhone = phone.trim().replace(/\D/g, '');
+            if (!cleanPhone) {
+              alert('Please enter a valid mobile phone number.');
+              return;
+            }
             const canonicalPhone = normalizePhoneNumber(cleanPhone);
             const acc10 = generatePalmPayAccountNumber(cleanPhone);
 
@@ -694,137 +700,134 @@ export default function App() {
                 }
               }
 
-              if (snap && snap.exists()) {
-                const data = snap.data();
-                const registeredPassword = data.password;
-                if (password !== '__biometric_authenticated__' && registeredPassword && registeredPassword !== password) {
-                  alert('Incorrect 6-digit password. Please try again.');
-                  return;
-                }
-
-                const userDocId = snap.id;
-                const safePhone = data.phoneNumber || userDocId;
-                const safeAcc = normalizePalmPayAccountNumber(data.accountNumber || safePhone);
-                const userBal = typeof data.balance === 'number' ? data.balance : Number(data.balance) || 0;
-
-                // Isolate session: clear prior state completely
-                isInitialLoadRef.current = true;
-                setUserProfile({
-                  fullName: data.fullName || '',
-                  userName: data.userName || data.fullName?.split(' ')[0] || 'User',
-                  phoneNumber: userDocId,
-                  accountNumber: safeAcc,
-                  pin: data.pin || '',
-                  imageUrl: data.imageUrl || data.photoURL || '',
-                  photoURL: data.photoURL || data.imageUrl || '',
-                  avatarUrl: data.avatarUrl || data.imageUrl || '',
-                  balance: userBal,
-                  tier: data.tier || 'Tier 2',
-                });
-                setBalance(userBal);
-
-                localStorage.setItem('palmpay_active_session_phone', userDocId);
-                localStorage.setItem('palmpay_last_login_phone', userDocId);
-                localStorage.setItem('palmpay_last_login_time', Date.now().toString());
-                setIsLoggedIn(true);
-
-                // Immediately load transactions from Firestore (subcollection & root)
-                try {
-                  const txMap = new Map<string, TransactionItem>();
-
-                  const parseLoginTx = (id: string, tData: any): TransactionItem => {
-                    const isCredit = tData.type === 'credit' || (typeof tData.amount === 'number' && tData.amount > 0 && tData.type !== 'transfer' && tData.type !== 'bill' && tData.type !== 'airtime' && tData.type !== 'data' && tData.type !== 'electricity' && tData.type !== 'betting');
-                    const numAmt = Math.abs(Number(tData.amount) || 0);
-                    const formatted = tData.formattedAmount || `${isCredit ? '+' : '-'}₦${numAmt.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
-                    const rawDate = tData.date || (tData.createdAt?.seconds ? new Date(tData.createdAt.seconds * 1000).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : (tData.timestamp?.seconds ? new Date(tData.timestamp.seconds * 1000).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Just now'));
-                    
-                    let mName = tData.month;
-                    if (!mName && rawDate) {
-                      const parts = rawDate.split(' ');
-                      if (parts.length > 0 && parts[0].length >= 3) {
-                        mName = parts[0].slice(0, 3);
-                      }
-                    }
-
-                    const rawTimestamp = tData.timestamp?.seconds || tData.createdAt?.seconds || (typeof tData.timestamp === 'number' ? tData.timestamp : (typeof tData.rawTimestamp === 'number' ? tData.rawTimestamp : Date.now() / 1000));
-                    const txDate = tData.timestamp || tData.createdAt || rawDate;
-                    const seed = id || tData.reference || `tx-${Date.now()}`;
-
-                    const authenticTxId = tData.txId && /^\d{16,20}$/.test(String(tData.txId).trim())
-                      ? String(tData.txId).trim()
-                      : generatePalmPayTransactionId(txDate, seed);
-
-                    const authenticSessionId = tData.sessionId && /^\d{30}$/.test(String(tData.sessionId).trim())
-                      ? String(tData.sessionId).trim()
-                      : generatePalmPaySessionId(txDate, tData.bankCode || '999991', seed);
-
-                    const authenticRemark = tData.remark || tData.narration || generatePalmPayRemark({
-                      isIncoming: isCredit,
-                      type: tData.type,
-                      category: tData.category,
-                      senderName: tData.senderName,
-                      senderBank: tData.senderBank,
-                      recipientName: tData.recipient,
-                      recipientAccount: tData.accountNumber || safeAcc,
-                      narration: tData.narration,
-                    });
-
-                    return {
-                      ...tData,
-                      id: id || tData.reference || `tx-${Date.now()}`,
-                      title: tData.title || (isCredit ? `Received from ${tData.senderName || 'PalmPay'}` : `Send - ${tData.recipient || 'Recipient'}`),
-                      recipient: tData.recipient,
-                      senderName: tData.senderName,
-                      senderBank: tData.senderBank,
-                      amount: numAmt,
-                      formattedAmount: formatted,
-                      type: tData.type || (isCredit ? 'credit' : 'transfer'),
-                      date: rawDate,
-                      month: mName || 'Recent',
-                      category: tData.category || 'transfer',
-                      status: (tData.status === 'failed' ? 'failed' : tData.status === 'pending' ? 'pending' : 'successful') as 'failed' | 'pending' | 'successful',
-                      narration: authenticRemark,
-                      remark: authenticRemark,
-                      reference: tData.reference || id,
-                      txId: authenticTxId,
-                      transactionId: authenticTxId,
-                      sessionId: authenticSessionId,
-                      accountNumber: tData.accountNumber || safeAcc,
-                      rawTimestamp,
-                    };
-                  };
-
-                  // 1. Load subcollection transactions
-                  const txSnap = await getDocs(collection(db, 'users', userDocId, 'transactions'));
-                  txSnap.docs.forEach((d) => {
-                    txMap.set(d.id, parseLoginTx(d.id, d.data()));
-                  });
-
-                  // 2. Load root collection transactions
-                  const rootSnap = await getDocs(query(collection(db, 'transactions'), where('userId', '==', userDocId)));
-                  rootSnap.docs.forEach((d) => {
-                    txMap.set(d.id, parseLoginTx(d.id, d.data()));
-                  });
-
-                  const combinedList = Array.from(txMap.values());
-                  combinedList.sort((a, b) => (b.rawTimestamp || 0) - (a.rawTimestamp || 0));
-                  setTransactions(combinedList);
-                } catch (txErr) {
-                  console.warn('Initial tx load error:', txErr);
-                }
-              } else {
-                alert('This account is not registered. Please tap the back arrow to Open an Account (Sign Up).');
+              if (!snap || !snap.exists()) {
+                alert(`Account not found. The mobile number (+234 ${cleanPhone}) is not registered on PalmPay. Please tap 'Open an Account (Sign Up)' to register.`);
                 return;
               }
+
+              const data = snap.data();
+              const registeredPassword = data.password;
+              if (password !== '__biometric_authenticated__' && registeredPassword && registeredPassword !== password) {
+                alert('Incorrect 6-digit password. Please check your credentials and try again.');
+                return;
+              }
+
+              const userDocId = snap.id;
+              const safePhone = data.phoneNumber || userDocId;
+              const safeAcc = normalizePalmPayAccountNumber(data.accountNumber || safePhone);
+              const userBal = typeof data.balance === 'number' ? data.balance : Number(data.balance) || 0;
+
+              // Isolate session: clear prior state completely
+              setTransactions([]);
+              setBalance(userBal);
+              isInitialLoadRef.current = true;
+              setUserProfile({
+                fullName: data.fullName || '',
+                userName: data.userName || data.fullName?.split(' ')[0] || 'User',
+                phoneNumber: userDocId,
+                accountNumber: safeAcc,
+                pin: data.pin || '',
+                imageUrl: data.imageUrl || data.photoURL || '',
+                photoURL: data.photoURL || data.imageUrl || '',
+                avatarUrl: data.avatarUrl || data.imageUrl || '',
+                balance: userBal,
+                tier: data.tier || 'Tier 2',
+              });
+
+              localStorage.setItem('palmpay_active_session_phone', userDocId);
+              localStorage.setItem('palmpay_last_login_phone', userDocId);
+              localStorage.setItem('palmpay_last_login_time', Date.now().toString());
+
+              // Immediately load transactions from Firestore (subcollection & root)
+              try {
+                const txMap = new Map<string, TransactionItem>();
+
+                const parseLoginTx = (id: string, tData: any): TransactionItem => {
+                  const isCredit = tData.type === 'credit' || (typeof tData.amount === 'number' && tData.amount > 0 && tData.type !== 'transfer' && tData.type !== 'bill' && tData.type !== 'airtime' && tData.type !== 'data' && tData.type !== 'electricity' && tData.type !== 'betting');
+                  const numAmt = Math.abs(Number(tData.amount) || 0);
+                  const formatted = tData.formattedAmount || `${isCredit ? '+' : '-'}₦${numAmt.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
+                  const rawDate = tData.date || (tData.createdAt?.seconds ? new Date(tData.createdAt.seconds * 1000).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : (tData.timestamp?.seconds ? new Date(tData.timestamp.seconds * 1000).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Just now'));
+                  
+                  let mName = tData.month;
+                  if (!mName && rawDate) {
+                    const parts = rawDate.split(' ');
+                    if (parts.length > 0 && parts[0].length >= 3) {
+                      mName = parts[0].slice(0, 3);
+                    }
+                  }
+
+                  const rawTimestamp = tData.timestamp?.seconds || tData.createdAt?.seconds || (typeof tData.timestamp === 'number' ? tData.timestamp : (typeof tData.rawTimestamp === 'number' ? tData.rawTimestamp : Date.now() / 1000));
+                  const txDate = tData.timestamp || tData.createdAt || rawDate;
+                  const seed = id || tData.reference || `tx-${Date.now()}`;
+
+                  const authenticTxId = tData.txId && /^\d{16,20}$/.test(String(tData.txId).trim())
+                    ? String(tData.txId).trim()
+                    : generatePalmPayTransactionId(txDate, seed);
+
+                  const authenticSessionId = tData.sessionId && /^\d{30}$/.test(String(tData.sessionId).trim())
+                    ? String(tData.sessionId).trim()
+                    : generatePalmPaySessionId(txDate, tData.bankCode || '999991', seed);
+
+                  const authenticRemark = tData.remark || tData.narration || generatePalmPayRemark({
+                    isIncoming: isCredit,
+                    type: tData.type,
+                    category: tData.category,
+                    senderName: tData.senderName,
+                    senderBank: tData.senderBank,
+                    recipientName: tData.recipient,
+                    recipientAccount: tData.accountNumber || safeAcc,
+                    narration: tData.narration,
+                  });
+
+                  return {
+                    ...tData,
+                    id: id || tData.reference || `tx-${Date.now()}`,
+                    title: tData.title || (isCredit ? `Received from ${tData.senderName || 'PalmPay'}` : `Send - ${tData.recipient || 'Recipient'}`),
+                    recipient: tData.recipient,
+                    senderName: tData.senderName,
+                    senderBank: tData.senderBank,
+                    amount: numAmt,
+                    formattedAmount: formatted,
+                    type: tData.type || (isCredit ? 'credit' : 'transfer'),
+                    date: rawDate,
+                    month: mName || 'Recent',
+                    category: tData.category || 'transfer',
+                    status: (tData.status === 'failed' ? 'failed' : tData.status === 'pending' ? 'pending' : 'successful') as 'failed' | 'pending' | 'successful',
+                    narration: authenticRemark,
+                    remark: authenticRemark,
+                    reference: tData.reference || id,
+                    txId: authenticTxId,
+                    transactionId: authenticTxId,
+                    sessionId: authenticSessionId,
+                    accountNumber: tData.accountNumber || safeAcc,
+                    rawTimestamp,
+                  };
+                };
+
+                // 1. Load subcollection transactions
+                const txSnap = await getDocs(collection(db, 'users', userDocId, 'transactions'));
+                txSnap.docs.forEach((d) => {
+                  txMap.set(d.id, parseLoginTx(d.id, d.data()));
+                });
+
+                // 2. Load root collection transactions
+                const rootSnap = await getDocs(query(collection(db, 'transactions'), where('userId', '==', userDocId)));
+                rootSnap.docs.forEach((d) => {
+                  txMap.set(d.id, parseLoginTx(d.id, d.data()));
+                });
+
+                const combinedList = Array.from(txMap.values());
+                combinedList.sort((a, b) => (b.rawTimestamp || 0) - (a.rawTimestamp || 0));
+                setTransactions(combinedList);
+              } catch (txErr) {
+                console.warn('Initial tx load error:', txErr);
+              }
+
+              setIsLoggedIn(true);
             } catch (err) {
               console.warn('Firebase login error:', err);
-              alert('Unable to connect to database. Please check your connection.');
-              return;
+              alert('Unable to connect to server. Please check your connection.');
             }
-            // Save last login phone & timestamp to allow password-only login within fast-path duration
-            localStorage.setItem('palmpay_last_login_phone', phone);
-            localStorage.setItem('palmpay_last_login_time', Date.now().toString());
-            setIsLoggedIn(true);
           }}
           onSwitchToRegister={() => setAuthMode('register')}
         />
@@ -840,9 +843,12 @@ export default function App() {
 
             try {
               // 1. Check for account existence to avoid accidental collision or overwrite
-              const existingCheck = await getDoc(doc(db, 'users', canonicalPhone));
+              let existingCheck = await getDoc(doc(db, 'users', canonicalPhone));
+              if (!existingCheck.exists() && cleanPhone !== canonicalPhone) {
+                existingCheck = await getDoc(doc(db, 'users', cleanPhone));
+              }
               if (existingCheck.exists()) {
-                alert('An account with this mobile number already exists. Please Log In.');
+                alert(`An account with this mobile number (+234 ${cleanPhone}) is already registered on PalmPay. Please log in.`);
                 setAuthMode('login');
                 return;
               }
@@ -862,9 +868,10 @@ export default function App() {
               const userRef = doc(db, 'users', canonicalPhone);
               await setDoc(userRef, newProfile);
 
-              // Initialize clean isolated session
-              isInitialLoadRef.current = true;
+              // Initialize clean isolated session completely
               setTransactions([]);
+              setBalance(0);
+              isInitialLoadRef.current = true;
               setUserProfile({
                 fullName: newProfile.fullName,
                 userName: newProfile.userName,
@@ -877,7 +884,6 @@ export default function App() {
                 balance: 0,
                 tier: 'Tier 1',
               });
-              setBalance(0);
 
               // Save active session phone & timestamp
               localStorage.setItem('palmpay_active_session_phone', canonicalPhone);

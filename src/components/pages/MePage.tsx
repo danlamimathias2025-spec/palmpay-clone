@@ -186,7 +186,7 @@ export default function MePage({
             </div>
             <div>
               <p className="text-xs font-bold text-white">24/7 Customer Care</p>
-              <p className="text-[11px] text-white/50">Instant live chat and phone support</p>
+              <p className="text-[11px] text-emerald-400 font-semibold font-mono">WhatsApp: +234 902 726 2079</p>
             </div>
           </div>
           <ChevronRight size={16} className="text-white/40" />

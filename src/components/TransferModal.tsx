@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Check, Landmark, ShieldCheck, ArrowRight, Loader2 } from 'lucide-react';
+import BankLogo from './BankLogo';
 import { db } from '../lib/firebase';
 import { doc, addDoc, collection, setDoc, updateDoc, increment, serverTimestamp, getDoc } from 'firebase/firestore';
 import { formatNaira } from '../utils/format';
@@ -272,9 +273,12 @@ export default function TransferModal({
               <span className="text-white/60">Recipient</span>
               <span className="font-bold text-white truncate max-w-[170px]">{formData.accountName}</span>
             </div>
-            <div className="flex justify-between">
+            <div className="flex justify-between items-center">
               <span className="text-white/60">Bank</span>
-              <span className="font-semibold text-white/90">{formData.bankName}</span>
+              <div className="flex items-center gap-1.5 font-semibold text-white/90">
+                <BankLogo bank={formData.bankName} size="xs" />
+                <span>{formData.bankName}</span>
+              </div>
             </div>
             <div className="flex justify-between">
               <span className="text-white/60">Transfer Fee</span>
@@ -318,7 +322,15 @@ export default function TransferModal({
         <form onSubmit={handleSubmit} className="space-y-3.5">
           {/* Select Bank */}
           <div>
-            <label className="text-xs text-white/70 block mb-1">Select Bank</label>
+            <div className="flex justify-between items-center mb-1">
+              <label className="text-xs text-white/70 block">Select Bank</label>
+              {formData.bankName && (
+                <div className="flex items-center gap-1.5 text-[11px] text-purple-300 font-medium">
+                  <BankLogo bank={formData.bankName} size="xs" />
+                  <span>{formData.bankName}</span>
+                </div>
+              )}
+            </div>
             <select
               value={formData.bankCode}
               onChange={(e) => handleInputChange('bankCode', e.target.value)}

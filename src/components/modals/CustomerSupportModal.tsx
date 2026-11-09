@@ -11,8 +11,14 @@ interface CustomerSupportModalProps {
 
 export default function CustomerSupportModal({ onClose, userProfile }: CustomerSupportModalProps) {
   const displayName = userProfile?.userName || userProfile?.fullName?.split(' ')[0] || 'Valued Customer';
+  const whatsappNumber = '+2349027262079';
+  const whatsappUrl = 'https://wa.me/2349027262079?text=Hello%20PalmPay%20Customer%20Care%2C%20I%20need%20assistance.';
+
   const [messages, setMessages] = useState([
-    { sender: 'bot', text: `Hello ${displayName}! Welcome to PalmPay 24/7 Live Care. How can we help you today?` },
+    {
+      sender: 'bot',
+      text: `Hello ${displayName}! Welcome to PalmPay 24/7 Official Support. You can chat with us live here or directly on WhatsApp at ${whatsappNumber}. How can we assist you today?`,
+    },
   ]);
   const [input, setInput] = useState('');
 
@@ -29,18 +35,19 @@ export default function CustomerSupportModal({ onClose, userProfile }: CustomerS
         ...prev,
         {
           sender: 'bot',
-          text: `Thank you for contacting PalmPay Support regarding "${userMsg}". A dedicated customer care representative is reviewing your account. Transfers and funding are currently operating at 100% success rate.`,
+          text: `Thank you for contacting PalmPay Support regarding "${userMsg}". A dedicated customer care representative is reviewing your account. You can also reach our official WhatsApp agent directly at ${whatsappNumber}.`,
         },
       ]);
     }, 800);
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-      <div className="mirror-glass-modal rounded-3xl p-5 w-full max-w-sm h-[520px] flex flex-col relative">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+      <div className="mirror-glass-modal rounded-3xl p-5 w-full max-w-sm h-[540px] flex flex-col relative shadow-2xl">
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 w-8 h-8 rounded-full mirror-glass flex items-center justify-center text-white/70 hover:text-white"
+          className="absolute top-4 right-4 w-8 h-8 rounded-full mirror-glass flex items-center justify-center text-white/70 hover:text-white transition-colors"
+          aria-label="Close"
         >
           <X size={18} />
         </button>
@@ -50,15 +57,35 @@ export default function CustomerSupportModal({ onClose, userProfile }: CustomerS
             <Headphones size={22} />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-white font-script">PalmPay Live Support</h3>
+            <h3 className="text-sm font-bold text-white font-sans">PalmPay Live Support</h3>
             <p className="text-[10px] text-emerald-400 font-medium flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> Agent Online
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> Agent Active (+234 902 726 2079)
             </p>
           </div>
         </div>
 
+        {/* Quick Official WhatsApp Contact Banner */}
+        <div className="my-2.5 p-2.5 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-xs text-emerald-300 font-semibold">
+            <MessageSquare size={16} className="text-emerald-400 shrink-0" />
+            <div>
+              <p className="text-[11px] font-bold text-white leading-tight">Official WhatsApp Care</p>
+              <p className="text-[10px] text-emerald-300/80 font-mono">{whatsappNumber}</p>
+            </div>
+          </div>
+
+          <a
+            href={whatsappUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="py-1.5 px-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-[11px] shadow-sm active:scale-95 transition-all shrink-0"
+          >
+            Chat
+          </a>
+        </div>
+
         {/* Chat message history */}
-        <div className="flex-1 overflow-y-auto py-3 space-y-2.5 pr-1">
+        <div className="flex-1 overflow-y-auto py-2 space-y-2.5 pr-1 no-scrollbar">
           {messages.map((m, idx) => (
             <div
               key={idx}
@@ -88,7 +115,7 @@ export default function CustomerSupportModal({ onClose, userProfile }: CustomerS
           />
           <button
             type="submit"
-            className="p-2.5 rounded-xl bg-[#7846f7] hover:bg-[#6836ea] text-white active:scale-95 transition-all"
+            className="p-2.5 rounded-xl bg-[#7846f7] hover:bg-[#6836ea] text-white active:scale-95 transition-all shadow-md"
           >
             <Send size={16} />
           </button>

@@ -12,6 +12,7 @@ import {
   History,
 } from 'lucide-react';
 import NetworkLogo, { detectTelecomNetwork } from './NetworkLogo';
+import BankLogo from './BankLogo';
 
 export interface TransactionItem {
   id: string;
@@ -136,19 +137,13 @@ export default function TransactionHistoryView({
   };
 
   const renderIcon = (tx: TransactionItem) => {
-    if (tx.type === 'credit') {
-      return (
-        <div className="w-9 h-9 rounded-full bg-[#2563eb] text-white flex items-center justify-center shrink-0 shadow-sm">
-          <ArrowDownToLine size={19} strokeWidth={2.2} />
-        </div>
-      );
-    }
     if (tx.type === 'transfer') {
-      return (
-        <div className="w-9 h-9 rounded-full bg-[#6d28d9] text-white flex items-center justify-center shrink-0 shadow-sm">
-          <ArrowUpFromLine size={19} strokeWidth={2.2} />
-        </div>
-      );
+      const b = (tx as any).bankName || (tx as any).recipientBank || (tx as any).bank || 'PalmPay';
+      return <BankLogo bank={b} size="md" rounded="full" />;
+    }
+    if (tx.type === 'credit') {
+      const b = (tx as any).senderBank || (tx as any).bankName || (tx as any).sourceBank || 'PalmPay';
+      return <BankLogo bank={b} size="md" rounded="full" />;
     }
     if (tx.type === 'interest' || tx.type === 'autosave') {
       return (

@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
-import { ArrowLeft, Check, ChevronRight, Copy, Headphones, CheckCircle2, Share2, Download, ReceiptText, Smartphone, ShieldCheck, Image as ImageIcon, FileText } from 'lucide-react';
+import { ArrowLeft, Check, ChevronRight, Copy, Headphones, CheckCircle2, Share2, Download, ReceiptText, Smartphone, ShieldCheck, Image as ImageIcon, FileText, X } from 'lucide-react';
 import NetworkLogo, { detectTelecomNetwork } from './NetworkLogo';
+import BankLogo from './BankLogo';
 import { ensureReceiptDetails } from '../utils/transactionFormat';
 import { downloadReceiptAsImage, downloadReceiptAsPDF, shareReceipt } from '../utils/receiptCanvas';
 
@@ -53,12 +54,19 @@ export default function TransactionReceipt({
     }
   };
 
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+
   const handleSaveAsImage = async () => {
     setSavingImage(true);
     try {
       const activeElem = activeTab === 'app' ? receiptRef.current : slipRef.current;
-      await downloadReceiptAsImage(details, formattedNum, activeElem);
-      showToast('Receipt saved as PNG image!');
+      const res = await downloadReceiptAsImage(details, formattedNum, activeElem);
+      if (res.method === 'native-share') {
+        showToast('Receipt saved & opened in Android Share sheet!');
+      } else {
+        showToast('Receipt saved as PNG image!');
+        setPreviewImageUrl(res.dataUrl);
+      }
     } catch (e) {
       console.error('Image export failed:', e);
       showToast('Export failed. Please retry.');
@@ -71,8 +79,12 @@ export default function TransactionReceipt({
     setDownloadingPdf(true);
     try {
       const activeElem = activeTab === 'app' ? receiptRef.current : slipRef.current;
-      await downloadReceiptAsPDF(details, formattedNum, activeElem);
-      showToast('Receipt PDF downloaded!');
+      const res = await downloadReceiptAsPDF(details, formattedNum, activeElem);
+      if (res.method === 'native-share') {
+        showToast('Receipt PDF saved & ready to share!');
+      } else {
+        showToast('Receipt PDF downloaded!');
+      }
     } catch (e) {
       console.error('PDF export failed:', e);
       showToast('PDF export failed. Please retry.');
@@ -127,84 +139,14 @@ export default function TransactionReceipt({
       );
     }
 
-    // Moniepoint
-    if (b.includes('monie') || b.includes('point')) {
-      return (
-        <div className="w-13 h-13 rounded-full bg-[#0052ff] flex flex-col items-center justify-center shadow-md border-2 border-white text-white">
-          <span className="text-xl font-black leading-none font-sans">M</span>
-          <span className="text-[7px] font-bold tracking-tighter leading-none mt-0.5">Moniepoint</span>
-        </div>
-      );
-    }
-
-    // Access Bank
-    if (b.includes('access')) {
-      return (
-        <div className="w-13 h-13 rounded-full bg-white flex flex-col items-center justify-center shadow-md border border-gray-200">
-          <div className="flex gap-0.5 items-center">
-            <span className="w-2.5 h-2.5 bg-[#002f6c] rotate-45 rounded-xs" />
-            <span className="w-2.5 h-2.5 bg-[#ff6a00] rotate-45 rounded-xs" />
-          </div>
-          <span className="text-[7px] font-extrabold text-[#002f6c] tracking-tight mt-0.5">access</span>
-        </div>
-      );
-    }
-
-    // GTBank
-    if (b.includes('gt') || b.includes('guaranty')) {
-      return (
-        <div className="w-13 h-13 rounded-full bg-[#e35205] flex items-center justify-center shadow-md border-2 border-white text-white font-black text-xs">
-          GTBank
-        </div>
-      );
-    }
-
-    // Zenith Bank
-    if (b.includes('zenith')) {
-      return (
-        <div className="w-13 h-13 rounded-full bg-white flex flex-col items-center justify-center shadow-md border border-gray-200">
-          <span className="text-lg font-black text-[#d32f2f] leading-none">Z</span>
-          <span className="text-[7px] font-bold text-[#d32f2f]">ZENITH</span>
-        </div>
-      );
-    }
-
-    // Kuda Bank
-    if (b.includes('kuda')) {
-      return (
-        <div className="w-13 h-13 rounded-full bg-[#40196d] flex items-center justify-center shadow-md border-2 border-white text-white font-extrabold text-sm">
-          Kuda.
-        </div>
-      );
-    }
-
-    // OPay
-    if (b.includes('opay')) {
-      return (
-        <div className="w-13 h-13 rounded-full bg-[#00b875] flex items-center justify-center shadow-md border-2 border-white text-white font-black text-xs">
-          OPay
-        </div>
-      );
-    }
-
-    // UBA
-    if (b.includes('uba') || b.includes('united bank')) {
-      return (
-        <div className="w-13 h-13 rounded-full bg-[#d32f2f] flex items-center justify-center shadow-md border-2 border-white text-white font-black text-xs">
-          UBA
-        </div>
-      );
-    }
-
-    // PalmPay Logo (default)
+    // Exact Bank Logo from user assets
     return (
-      <div className="w-13 h-13 rounded-full overflow-hidden shadow-md border-2 border-white bg-transparent">
-        <img
-          src="/palmpay_official_icon.svg"
-          alt="PalmPay"
-          className="w-full h-full object-contain"
-        />
-      </div>
+      <BankLogo
+        bank={bank}
+        size="xl"
+        rounded="2xl"
+        className="shadow-md border-2 border-white ring-1 ring-black/5"
+      />
     );
   };
 
@@ -310,9 +252,10 @@ export default function TransactionReceipt({
                   <p className="text-[#181b28] font-medium leading-tight select-all">
                     {details.senderName}
                   </p>
-                  <p className="text-[11px] text-[#8c92a4] mt-0.5">
-                    {details.senderBank}|{details.maskedSenderAccount}
-                  </p>
+                  <div className="text-[11px] text-[#8c92a4] mt-1 flex items-center justify-end gap-1.5">
+                    <BankLogo bank={details.senderBank} size="xs" border={false} />
+                    <span>{details.senderBank} | {details.maskedSenderAccount}</span>
+                  </div>
                 </div>
               </div>
 
@@ -323,9 +266,10 @@ export default function TransactionReceipt({
                   <p className="text-[#181b28] font-medium leading-tight select-all">
                     {details.recipientName}
                   </p>
-                  <p className="text-[11px] text-[#8c92a4] mt-0.5">
-                    {details.recipientBank}|{details.maskedRecipientAccount}
-                  </p>
+                  <div className="text-[11px] text-[#8c92a4] mt-1 flex items-center justify-end gap-1.5">
+                    <BankLogo bank={details.recipientBank} size="xs" border={false} />
+                    <span>{details.recipientBank} | {details.maskedRecipientAccount}</span>
+                  </div>
                 </div>
               </div>
 
@@ -454,20 +398,31 @@ export default function TransactionReceipt({
                 Any Questions about this transaction?
               </p>
 
-              <button
-                onClick={() => {
-                  if (onSupportClick) {
-                    onClose();
-                    onSupportClick();
-                  } else {
-                    showToast("Connecting to PalmPay 24/7 Customer Service...");
-                  }
-                }}
-                className="flex items-center gap-2 text-sm font-semibold text-[#6c1cf5] hover:text-[#5b15d4] transition-colors py-1 active:scale-95"
-              >
-                <Headphones size={17} strokeWidth={2.2} />
-                <span>Customer Service</span>
-              </button>
+              <div className="flex items-center justify-between pt-1">
+                <button
+                  onClick={() => {
+                    if (onSupportClick) {
+                      onClose();
+                      onSupportClick();
+                    } else {
+                      window.open('https://wa.me/2349027262079?text=Hello%20PalmPay%20Customer%20Care%2C%20I%20have%20a%20question%20about%20my%20transaction', '_blank');
+                    }
+                  }}
+                  className="flex items-center gap-2 text-sm font-bold text-[#6c1cf5] hover:text-[#5b15d4] transition-colors py-1 active:scale-95"
+                >
+                  <Headphones size={17} strokeWidth={2.2} />
+                  <span>Customer Service</span>
+                </button>
+
+                <a
+                  href="https://wa.me/2349027262079?text=Hello%20PalmPay%20Customer%20Care%2C%20I%20have%20a%20question%20about%20my%20transaction"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-emerald-600 hover:text-emerald-700 font-bold bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200 transition-colors"
+                >
+                  WhatsApp: +234 902 726 2079
+                </a>
+              </div>
             </div>
           </div>
         ) : (
@@ -480,11 +435,12 @@ export default function TransactionReceipt({
           >
             {/* Top PalmPay Brand Header */}
             <div className="flex items-center justify-between border-b border-gray-100 pb-4 mb-4">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2.5">
                 <img
-                  src="/palmpay_official_icon.svg"
+                  src="/assets/aistudio/download__1__15dfc463.png"
                   alt="PalmPay"
-                  className="w-8 h-8 object-contain"
+                  className="w-8 h-8 object-contain rounded-lg shrink-0 shadow-xs"
+                  crossOrigin="anonymous"
                 />
                 <div>
                   <h3 className="text-base font-extrabold text-[#6c1cf5] tracking-tight">PalmPay</h3>
@@ -519,9 +475,12 @@ export default function TransactionReceipt({
                 <span className="font-semibold text-right text-gray-900 select-all">{details.recipientName}</span>
               </div>
 
-              <div className="flex justify-between items-start pt-2">
+              <div className="flex justify-between items-center pt-2">
                 <span className="text-gray-400 font-normal">Recipient Bank</span>
-                <span className="font-semibold text-right text-gray-900">{details.recipientBank}</span>
+                <div className="font-semibold text-right text-gray-900 flex items-center gap-1.5">
+                  <BankLogo bank={details.recipientBank} size="xs" />
+                  <span>{details.recipientBank}</span>
+                </div>
               </div>
 
               <div className="flex justify-between items-start pt-2">
@@ -534,9 +493,12 @@ export default function TransactionReceipt({
                 <span className="font-semibold text-right text-gray-900 select-all">{details.senderName}</span>
               </div>
 
-              <div className="flex justify-between items-start pt-2">
+              <div className="flex justify-between items-center pt-2">
                 <span className="text-gray-400 font-normal">Sender Bank</span>
-                <span className="font-semibold text-right text-gray-900">{details.senderBank}</span>
+                <div className="font-semibold text-right text-gray-900 flex items-center gap-1.5">
+                  <BankLogo bank={details.senderBank} size="xs" />
+                  <span>{details.senderBank}</span>
+                </div>
               </div>
 
               <div className="flex justify-between items-start pt-2">
@@ -607,6 +569,57 @@ export default function TransactionReceipt({
           </button>
         </div>
       </div>
+
+      {/* 5. Fullscreen Receipt Image Preview Modal (Ensures 100% universal saving on every mobile device) */}
+      {previewImageUrl && (
+        <div className="fixed inset-0 z-60 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[92vh]">
+            {/* Modal Header */}
+            <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between bg-gray-50/70">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-gray-900">
+                <CheckCircle2 size={16} className="text-emerald-500" />
+                <span>Receipt Ready</span>
+              </div>
+              <button
+                onClick={() => setPreviewImageUrl(null)}
+                className="p-1 rounded-full text-gray-500 hover:text-black hover:bg-gray-200 transition-colors"
+                aria-label="Close Preview"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Scrollable Receipt Preview */}
+            <div className="overflow-y-auto p-4 flex flex-col items-center bg-gray-100/60 flex-1">
+              <img
+                src={previewImageUrl}
+                alt="PalmPay Receipt"
+                className="w-full rounded-2xl shadow-md border border-gray-200 object-contain"
+              />
+              <p className="text-[11px] text-gray-500 text-center mt-3 font-medium px-2 leading-relaxed">
+                <span className="font-bold text-[#6c1cf5]">Mobile Tip:</span> Press and hold the image to save directly to your phone&apos;s Photos / Gallery.
+              </p>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="p-3 bg-white border-t border-gray-100 flex gap-2">
+              <button
+                onClick={handleShare}
+                className="flex-1 py-2.5 px-3 rounded-2xl bg-[#6c1cf5] hover:bg-[#5b15d4] text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition-all"
+              >
+                <Share2 size={14} />
+                <span>Share Receipt</span>
+              </button>
+              <button
+                onClick={() => setPreviewImageUrl(null)}
+                className="py-2.5 px-4 rounded-2xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs active:scale-95 transition-all"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

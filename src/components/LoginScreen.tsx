@@ -131,12 +131,15 @@ export default function LoginScreen({
         >
           <ArrowLeft size={22} />
         </button>
-        <button
-          onClick={() => alert('Support line active')}
-          className="p-1 rounded-full hover:bg-white/5 active:scale-95 transition-all text-white"
+        <a
+          href="https://wa.me/2349027262079?text=Hello%20PalmPay%20Customer%20Care%2C%20I%20need%20assistance%20with%20logging%20in"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="p-1 rounded-full hover:bg-white/5 active:scale-95 transition-all text-white flex items-center gap-1"
+          title="Customer Care (+2349027262079)"
         >
           <Headphones size={22} />
-        </button>
+        </a>
       </div>
 
       {/* Main Form Block */}
@@ -325,14 +328,23 @@ export default function LoginScreen({
             <div className="flex items-center justify-between text-xs font-bold pt-1">
               <button
                 type="button"
-                onClick={() => setStep('phone')}
+                onClick={() => {
+                  setPassword('');
+                  setPhoneNumber('');
+                  localStorage.removeItem('palmpay_last_login_phone');
+                  setStep('phone');
+                }}
                 className="text-purple-300 hover:text-white transition-colors"
               >
                 Change Number
               </button>
               <button
                 type="button"
-                onClick={() => onSwitchToRegister()}
+                onClick={() => {
+                  setPassword('');
+                  setPhoneNumber('');
+                  onSwitchToRegister();
+                }}
                 className="text-emerald-400 hover:text-emerald-300 transition-colors"
               >
                 Open New Account

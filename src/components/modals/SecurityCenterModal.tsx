@@ -43,7 +43,7 @@ export default function SecurityCenterModal({ onClose, userProfile }: SecurityCe
 
   const handleToggleBiometrics = async (val: boolean) => {
     setBioEnabled(val);
-    setBiometricSettings({ enabled: val });
+    setBiometricSettings({ enabled: val }, phone);
     try {
       if (phone) {
         const userRef = doc(db, 'users', phone);
@@ -58,7 +58,7 @@ export default function SecurityCenterModal({ onClose, userProfile }: SecurityCe
 
   const handleThresholdChange = async (newThresh: number) => {
     setThreshold(newThresh);
-    setBiometricSettings({ highValueThreshold: newThresh });
+    setBiometricSettings({ highValueThreshold: newThresh }, phone);
     try {
       if (phone) {
         const userRef = doc(db, 'users', phone);
@@ -72,22 +72,32 @@ export default function SecurityCenterModal({ onClose, userProfile }: SecurityCe
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-      <div className="mirror-glass-modal rounded-3xl p-6 w-full max-w-sm relative max-h-[90vh] overflow-y-auto no-scrollbar">
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 w-8 h-8 rounded-full mirror-glass flex items-center justify-center text-white/70 hover:text-white"
-        >
-          <X size={18} />
-        </button>
+    <div className="fixed inset-0 z-50 flex flex-col bg-[#0d0e12] text-white overflow-y-auto animate-in fade-in slide-in-from-bottom duration-300">
+      {/* Full-Page Header */}
+      <div className="sticky top-0 z-20 bg-[#0d0e12]/95 backdrop-blur-md px-4 py-4 flex items-center justify-between border-b border-white/10">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={onClose}
+            className="p-1 rounded-full hover:bg-white/10 text-white/80 active:scale-95 transition-all"
+            aria-label="Back"
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <h2 className="text-lg font-bold text-white font-sans">Security Center</h2>
+        </div>
+      </div>
 
-        <div className="flex items-center gap-2.5 mb-4">
-          <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
-            <ShieldCheck size={24} />
+      {/* Main Full-Page Content */}
+      <div className="w-full max-w-md mx-auto p-5 space-y-4 pb-24">
+        <div className="flex items-center gap-3 p-4 rounded-3xl bg-emerald-500/10 border border-emerald-500/20 mb-2">
+          <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+            <ShieldCheck size={26} />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-white font-script">Security Center</h2>
-            <p className="text-[11px] text-emerald-400 font-semibold">Account Security Rating: High (100%)</p>
+            <h3 className="text-sm font-bold text-white font-sans">Account Security Rating</h3>
+            <p className="text-xs text-emerald-400 font-semibold mt-0.5">High Protection (100% Secure)</p>
           </div>
         </div>
 

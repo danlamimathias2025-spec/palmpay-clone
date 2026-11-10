@@ -41,22 +41,24 @@ export interface BiometricSettings {
 
 const DEFAULT_THRESHOLD = 5000;
 
-export function getBiometricSettings(): BiometricSettings {
+export function getBiometricSettings(userId?: string): BiometricSettings {
   if (typeof window === 'undefined') {
     return { enabled: true, highValueThreshold: DEFAULT_THRESHOLD };
   }
-  const enabled = localStorage.getItem('palmpay_biometrics_enabled') !== 'false';
-  const threshold = Number(localStorage.getItem('palmpay_biometrics_threshold')) || DEFAULT_THRESHOLD;
+  const cleanId = (userId || localStorage.getItem('palmpay_last_login_phone') || '').replace(/\D/g, '');
+  const enabled = localStorage.getItem(`palmpay_bio_enabled_${cleanId}`) !== 'false';
+  const threshold = Number(localStorage.getItem(`palmpay_bio_threshold_${cleanId}`)) || DEFAULT_THRESHOLD;
   return { enabled, highValueThreshold: threshold };
 }
 
-export function setBiometricSettings(settings: Partial<BiometricSettings>): void {
+export function setBiometricSettings(settings: Partial<BiometricSettings>, userId?: string): void {
   if (typeof window === 'undefined') return;
+  const cleanId = (userId || localStorage.getItem('palmpay_last_login_phone') || '').replace(/\D/g, '');
   if (settings.enabled !== undefined) {
-    localStorage.setItem('palmpay_biometrics_enabled', String(settings.enabled));
+    localStorage.setItem(`palmpay_bio_enabled_${cleanId}`, String(settings.enabled));
   }
   if (settings.highValueThreshold !== undefined) {
-    localStorage.setItem('palmpay_biometrics_threshold', String(settings.highValueThreshold));
+    localStorage.setItem(`palmpay_bio_threshold_${cleanId}`, String(settings.highValueThreshold));
   }
 }
 

@@ -60,6 +60,25 @@ async function startServer() {
   });
   app.use(import_express.default.json());
   app.use(import_express.default.urlencoded({ extended: true }));
+  app.get("/.well-known/assetlinks.json", (req, res) => {
+    const assetlinksPath = import_path.default.join(process.cwd(), "public", ".well-known", "assetlinks.json");
+    if (import_fs.default.existsSync(assetlinksPath)) {
+      res.setHeader("Content-Type", "application/json");
+      return res.sendFile(assetlinksPath);
+    }
+    return res.json([
+      {
+        relation: ["delegate_permission/common.handle_all_urls"],
+        target: {
+          namespace: "android_app",
+          package_name: "com.palmpay.mobile",
+          sha256_cert_fingerprints: [
+            "14:6D:E9:44:C5:4F:57:1D:69:D7:0E:26:03:6A:B9:32:4D:42:04:78:E8:4A:28:B4:DF:AE:F7:73:96:FA:F8:9F"
+          ]
+        }
+      }
+    ]);
+  });
   app.post("/api/send-sms", async (req, res) => {
     const { phoneNumber, amount } = req.body;
     const getSmsApiKey = () => {
@@ -122,11 +141,22 @@ async function startServer() {
       });
     }
   });
-  const getBankApiKey = () => {
-    return process.env.BANK_API_KEY || process.env.VITE_BANK_API_KEY || process.env.PAYSTACK_SECRET_KEY || process.env.PAYSTACK_KEY || "";
+  const getBankApiKey = (req) => {
+    const headerKey = req?.headers?.["x-paystack-key"] || req?.headers?.["x-bank-key"] || req?.body?.paystackKey;
+    const envKey = process.env.PAYSTACK_SECRET_KEY || process.env.PAYSTACK_API_KEY || process.env.PAYSTACK_KEY || process.env.PAYSTACK || process.env.PAYSTACK_SECRET || process.env.BANK_API_KEY || process.env.VITE_BANK_API_KEY || process.env.VITE_PAYSTACK_SECRET_KEY || process.env.VITE_PAYSTACK_API_KEY || process.env.VITE_PAYSTACK_KEY || process.env.SECRET_KEY || "";
+    return (headerKey || envKey || "").trim();
   };
+  const getPaystackPublicKey = () => {
+    return (process.env.PAYSTACK_PUBLIC_KEY || process.env.VITE_PAYSTACK_PUBLIC_KEY || process.env.PUBLIC_KEY || "").trim();
+  };
+  app.get("/api/paystack/public-key", (req, res) => {
+    res.json({
+      publicKey: getPaystackPublicKey(),
+      hasSecretKey: Boolean(getBankApiKey(req))
+    });
+  });
   app.get("/api/banks", async (req, res) => {
-    const apiKey = getBankApiKey();
+    const apiKey = getBankApiKey(req);
     if (!apiKey) {
       console.warn("BANK_API_KEY is not configured. Falling back to mock bank list.");
       return res.json([
@@ -252,32 +282,6 @@ async function startServer() {
         console.warn("[resolvePalmPayUser] Firestore lookup warning:", err);
       }
     }
-    const palmpayDirectory = {
-      "08082076038": "Mathias Danlami",
-      "8082076038": "Mathias Danlami",
-      "08135469691": "Peace Danlami",
-      "8135469691": "Peace Danlami",
-      "09022856059": "Shekwolo danlami",
-      "9022856059": "Shekwolo danlami",
-      "08012345678": "PEACE DANLAMI",
-      "8012345678": "PEACE DANLAMI",
-      "09087654321": "JOHN JAMES AYAKA",
-      "08123456789": "ABUBAKAR GARBA",
-      "08034567890": "TUKUR SAHABI MUHAMMAD",
-      "07011223344": "CHINONSO OKONKWO",
-      "08099887766": "AISHA BELLO YUSUF",
-      "09012345678": "OLUWASEUN ADEBAYO",
-      "08187654321": "EMMANUEL CHIDIEBERE"
-    };
-    if (palmpayDirectory[acc10] || palmpayDirectory[phone11]) {
-      return {
-        userId: phone11,
-        accountName: palmpayDirectory[acc10] || palmpayDirectory[phone11],
-        accountNumber: acc10,
-        phoneNumber: phone11,
-        userData: { fullName: palmpayDirectory[acc10] || palmpayDirectory[phone11], balance: 0 }
-      };
-    }
     return null;
   }
   const handleResolveAccount = async (req, res) => {
@@ -311,71 +315,51 @@ async function startServer() {
         }
       });
     }
-    if (bankCode && !isPalmPayCode) {
-      const apiKey = getBankApiKey();
-      if (apiKey) {
+    const apiKey = getBankApiKey(req);
+    const clean10 = String(rawAccount).replace(/\D/g, "").slice(-10);
+    if (apiKey && clean10.length === 10) {
+      const candidateBankCodes = [];
+      if (bankCode && !isPalmPayCode) {
+        candidateBankCodes.push(String(bankCode).trim());
+      } else {
+        candidateBankCodes.push("999991", "100033");
+      }
+      for (const code of candidateBankCodes) {
         try {
+          console.log(`[Paystack Resolution] Resolving account ${clean10} with bank code ${code}...`);
           const response = await fetch(
-            `https://api.paystack.co/bank/resolve?account_number=${rawAccount}&bank_code=${bankCode}`,
-            { headers: { Authorization: `Bearer ${apiKey}` } }
+            `https://api.paystack.co/bank/resolve?account_number=${clean10}&bank_code=${code}`,
+            {
+              headers: {
+                Authorization: `Bearer ${apiKey}`,
+                "Content-Type": "application/json"
+              }
+            }
           );
           const data = await response.json();
-          if (response.ok && data?.data?.account_name) {
+          console.log(`[Paystack Resolution] Bank ${code} response:`, data);
+          if (response.ok && data?.status && data?.data?.account_name) {
             return res.json({
               success: true,
               status: true,
+              message: "Account resolved successfully via Paystack",
               account_name: data.data.account_name,
-              account_number: rawAccount,
-              bank_code: bankCode,
+              account_number: clean10,
+              bank_code: code,
               data: data.data
             });
           }
         } catch (err) {
-          console.warn("External bank resolution error:", err);
+          console.warn(`[Paystack Resolution] Error for bank ${code}:`, err);
         }
       }
-      return res.json({
-        success: true,
-        status: true,
-        account_name: "Commercial Bank Customer",
-        account_number: rawAccount,
-        bank_code: bankCode,
-        data: {
-          account_number: rawAccount,
-          account_name: "Commercial Bank Customer",
-          bank_code: bankCode
-        }
-      });
     }
-    const cleaned = String(rawAccount).replace(/\D/g, "");
-    if (cleaned.length >= 10) {
-      const firstNames = ["IBRAHIM", "BLESSING", "CHINEDU", "AMINA", "OLUWASEUN", "KELECHI", "USMAN", "GRACE", "FATIMA", "SAMUEL", "ZAINAB", "CHUKWUDI"];
-      const lastNames = ["DANLAMI", "OKAFOR", "ADEYEMI", "GARBA", "EZE", "MUSA", "BELLO", "OKONKWO", "YAKUBU", "BALOGUN", "SULEIMAN", "NWOSU"];
-      const hash = cleaned.split("").reduce((acc, digit) => acc + (parseInt(digit, 10) || 0), 0);
-      const generatedName = `${firstNames[hash % firstNames.length]} ${lastNames[hash * 7 % lastNames.length]}`;
-      const acc10 = cleaned.slice(-10);
-      return res.json({
-        success: true,
-        status: true,
-        message: "Account resolved successfully",
-        account_name: generatedName,
-        account_number: acc10,
-        bank_name: "PalmPay",
-        bank_code: "999991",
-        data: {
-          account_number: acc10,
-          account_name: generatedName,
-          bank_code: "999991",
-          bank_id: 999991,
-          bank_name: "PalmPay"
-        }
-      });
-    }
+    const notFoundMsg = !apiKey ? `Account ${clean10 || rawAccount} not verified. Paystack key not detected or account does not exist.` : `Account ${clean10 || rawAccount} could not be resolved on Paystack. Please check the account number and bank.`;
     return res.status(404).json({
       success: false,
       status: false,
-      error: "Account not found",
-      message: `Account number ${rawAccount} not found on PalmPay`
+      error: "Account not verified",
+      message: notFoundMsg
     });
   };
   app.all("/api/resolve-palmpay", handleResolveAccount);

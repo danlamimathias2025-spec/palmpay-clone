@@ -119,22 +119,10 @@ export default function TransferModal({
     if (accNum.length !== 10 || !bCode) return;
     setVerifying(true);
     setAccountError('');
+    setResolvedAccountName('');
 
     try {
-      // 1. Check if PalmPay / Internal database user
-      if (bCode === '999991' || bName.toLowerCase().includes('palm')) {
-        const snap = await getDoc(doc(db, 'users', accNum));
-        if (snap.exists() && snap.data()?.fullName) {
-          setResolvedAccountName(snap.data().fullName.toUpperCase());
-          setSelectedBankCode(bCode);
-          setSelectedBankName(bName);
-          setShowConfirmSheet(true);
-          setVerifying(false);
-          return;
-        }
-      }
-
-      // 2. Resolve via Paystack API
+      // Resolve exclusively via server-side API which uses Paystack directory
       const res = await fetch('/api/resolve-account', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -148,20 +136,12 @@ export default function TransferModal({
         setSelectedBankName(bName);
         setShowConfirmSheet(true);
       } else {
-        // Fallback default name if lookup fails so user is never blocked
-        const fallbackNames = ['JERRY EJI', 'PEACE DANLAMI', 'MUSA IBRAHIM', 'ABUBAKAR GARBA', 'CHIDI OKORO'];
-        const hash = accNum.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-        const name = fallbackNames[hash % fallbackNames.length];
-        setResolvedAccountName(name);
-        setSelectedBankCode(bCode);
-        setSelectedBankName(bName);
-        setShowConfirmSheet(true);
+        // Use server-provided error message if available
+        setAccountError(data?.message || 'Account number not found. Please verify and try again.');
       }
-    } catch {
-      setResolvedAccountName('JERRY EJI');
-      setSelectedBankCode(bCode);
-      setSelectedBankName(bName);
-      setShowConfirmSheet(true);
+    } catch (err) {
+      console.error('Resolution error:', err);
+      setAccountError('Unable to resolve account. Please check your connection or the details.');
     } finally {
       setVerifying(false);
     }
@@ -392,9 +372,7 @@ export default function TransferModal({
                     onChange={(e) => {
                       const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
                       setAccountNumber(digits);
-                      if (digits.length === 10 && primarySuggestedBank) {
-                        resolveAccount(digits, primarySuggestedBank.code, primarySuggestedBank.name);
-                      }
+                      if (accountError) setAccountError('');
                     }}
                     className="w-full bg-transparent text-xl font-extrabold text-white tracking-widest focus:outline-none placeholder-white/20 font-sans"
                     autoFocus
@@ -414,6 +392,7 @@ export default function TransferModal({
                       setSelectedBankCode('');
                       setSelectedBankName('');
                       setResolvedAccountName('');
+                      setAccountError('');
                       setShowConfirmSheet(false);
                     }}
                     className="text-white/40 hover:text-white transition-colors shrink-0 p-0.5"
@@ -429,69 +408,37 @@ export default function TransferModal({
                   <span>Checking recipient directory...</span>
                 </div>
               )}
+
+              {accountError && (
+                <div className="flex items-center gap-1.5 text-xs text-rose-500 mt-2 font-bold animate-pulse">
+                  <XCircle size={14} className="shrink-0" />
+                  <span>{accountError}</span>
+                </div>
+              )}
             </div>
 
             {/* Bank Suggestions / Select Bank Section matching Screenshots 1 & 2 */}
             <div>
               <p className="text-[11px] font-medium text-white/50 block mb-2">
-                {cleanAcc.length >= 6 ? 'Bank suggestion — please confirm' : "Select recipient's bank"}
+                Select recipient's bank
               </p>
 
               <div className="bg-[#0f172a] border border-white/5 rounded-2xl overflow-hidden divide-y divide-white/5">
-                
-                {cleanAcc.length >= 6 ? (
-                  /* Case A: Account number entered -> Show Bank Suggestion Rows */
-                  <>
-                    {/* Row 1: Suggested Bank (e.g. OPay / PalmPay / Moniepoint) */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (cleanAcc.length === 10 && primarySuggestedBank) {
-                          handleSelectBank(primarySuggestedBank.code, primarySuggestedBank.name);
-                        } else {
-                          setShowBankPicker(true);
-                        }
-                      }}
-                      className="w-full p-4 flex items-center justify-between hover:bg-white/[0.03] active:bg-white/[0.06] transition-all text-left"
-                    >
-                      <div className="flex items-center gap-3">
-                        <BankLogo bank={primarySuggestedBank.name} size="md" />
-                        <span className="text-sm font-bold text-white">{primarySuggestedBank.name}</span>
-                      </div>
-                      <ChevronRight size={18} className="text-white/40" />
-                    </button>
-
-                    {/* Row 2: Search other banks */}
-                    <button
-                      type="button"
-                      onClick={() => setShowBankPicker(true)}
-                      className="w-full p-4 flex items-center justify-between hover:bg-white/[0.03] active:bg-white/[0.06] transition-all text-left"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-[#facc15]">
-                          <Landmark size={18} />
-                        </div>
-                        <span className="text-sm font-medium text-white/90">Search other banks</span>
-                      </div>
-                      <ChevronRight size={18} className="text-white/40" />
-                    </button>
-                  </>
-                ) : (
-                  /* Case B: No account number yet -> Single "Select Bank" row */
-                  <button
-                    type="button"
-                    onClick={() => setShowBankPicker(true)}
-                    className="w-full p-4 flex items-center justify-between hover:bg-white/[0.03] active:bg-white/[0.06] transition-all text-left"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-[#facc15]">
-                        <Landmark size={18} />
-                      </div>
-                      <span className="text-sm font-bold text-white">Select Bank</span>
+                <button
+                  type="button"
+                  onClick={() => setShowBankPicker(true)}
+                  className="w-full p-4 flex items-center justify-between hover:bg-white/[0.03] active:bg-white/[0.06] transition-all text-left"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-[#facc15]">
+                      <Landmark size={18} />
                     </div>
-                    <ChevronRight size={18} className="text-white/40" />
-                  </button>
-                )}
+                    <span className="text-sm font-bold text-white">
+                      {selectedBankName ? selectedBankName : 'Select Bank'}
+                    </span>
+                  </div>
+                  <ChevronRight size={18} className="text-white/40" />
+                </button>
               </div>
             </div>
 

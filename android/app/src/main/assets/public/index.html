@@ -8,11 +8,19 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600;700&family=Comfortaa:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Itim&display=swap" rel="stylesheet" />
-    <link rel="manifest" href="/manifest.json" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="./manifest.json" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png" />
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
     <meta name="theme-color" content="#6c1cf5" />
+
+    <!-- Preload Authentic Bank Logos for Instant Receipt Rendering & Canvas Export -->
+    <link rel="preload" as="image" href="./assets/aistudio/download__1__15dfc463.png" />
+    <link rel="preload" as="image" href="./assets/aistudio/download__3__4e826280.png" />
+    <link rel="preload" as="image" href="./assets/aistudio/download__1__5e9437a3.jpeg" />
+    <link rel="preload" as="image" href="./assets/aistudio/download_4168ff40.jpeg" />
+    <link rel="preload" as="image" href="./assets/aistudio/download__2__0776e9ab.png" />
+    <link rel="preload" as="image" href="./assets/aistudio/download_c708934a.png" />
 
     <style>
       /* Instant Zero-Dependency Offline Splash Screen */
@@ -110,8 +118,8 @@
         pointer-events: none !important;
       }
     </style>
-    <script type="module" crossorigin src="/assets/index-CIAkqhQC.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-CJh_5yTA.css">
+    <script type="module" crossorigin src="./assets/index-CtFu43aU.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-Bh83klKk.css">
   </head>
   <body class="bg-[#0b0d14] text-white antialiased overflow-x-hidden selection:bg-[#7b46f5] selection:text-white">
     <!-- Immediate Zero-Delay Offline & Online Splash Screen -->
@@ -187,12 +195,20 @@
       };
 
       // Service Worker Immediate Registration for 100% Offline Resilience
-      if ('serviceWorker' in navigator) {
+      if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
         window.addEventListener('load', function () {
           navigator.serviceWorker.register('/sw.js').catch(function (e) {
             console.warn('SW registration warning:', e);
           });
         });
+      }
+
+      // Cordova Native Android Bridge Loader (only when packaged inside APK)
+      if (window.location.protocol === 'file:' || window.cordova || /cordova/i.test(navigator.userAgent)) {
+        var cdv = document.createElement('script');
+        cdv.src = 'cordova.js';
+        cdv.onerror = function() {};
+        document.head.appendChild(cdv);
       }
     </script>
 

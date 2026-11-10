@@ -390,9 +390,8 @@ export default function RegistrationScreen({
             <button
               key={k}
               type="button"
-              disabled={step === 'details' && (activeDetailField === 'fullName' || activeDetailField === 'nickname')}
               onClick={() => handleKeyPress(k)}
-              className="bg-[#181920] hover:bg-[#20212a] text-white py-3.5 rounded-xl text-lg font-bold font-sans transition-all active:scale-[0.96] shadow-md border border-white/[0.01] disabled:opacity-30"
+              className="bg-[#181920] hover:bg-[#20212a] text-white py-3.5 rounded-xl text-lg font-bold font-sans transition-all active:scale-[0.96] shadow-md border border-white/[0.01]"
             >
               {k}
             </button>
@@ -401,17 +400,15 @@ export default function RegistrationScreen({
           <div className="bg-[#0d0e12] py-3.5" />
           <button
             type="button"
-            disabled={step === 'details' && (activeDetailField === 'fullName' || activeDetailField === 'nickname')}
             onClick={() => handleKeyPress('0')}
-            className="bg-[#181920] hover:bg-[#20212a] text-white py-3.5 rounded-xl text-lg font-bold font-sans transition-all active:scale-[0.96] shadow-md border border-white/[0.01] disabled:opacity-30"
+            className="bg-[#181920] hover:bg-[#20212a] text-white py-3.5 rounded-xl text-lg font-bold font-sans transition-all active:scale-[0.96] shadow-md border border-white/[0.01]"
           >
             0
           </button>
           <button
             type="button"
-            disabled={step === 'details' && (activeDetailField === 'fullName' || activeDetailField === 'nickname')}
             onClick={handleBackspace}
-            className="bg-[#181920] hover:bg-[#20212a] text-white py-3.5 rounded-xl text-lg font-bold font-sans transition-all active:scale-[0.96] shadow-md border border-white/[0.01] flex items-center justify-center text-white/80 hover:text-white disabled:opacity-30"
+            className="bg-[#181920] hover:bg-[#20212a] text-white py-3.5 rounded-xl text-lg font-bold font-sans transition-all active:scale-[0.96] shadow-md border border-white/[0.01] flex items-center justify-center text-white/80 hover:text-white"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z" />

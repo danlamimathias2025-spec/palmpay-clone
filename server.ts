@@ -389,33 +389,34 @@ async function startServer() {
       });
     }
 
-    // 1. Check PalmPay accounts first (internal database)
     const isPalmPayCode =
       !bankCode ||
       bankCode === "999991" ||
       bankCode === "100033" ||
       String(bankCode).toLowerCase().includes("palm") ||
-      bankCode === "999992" ||
       bankCode === "default";
 
-    const resolvedUser = await resolvePalmPayUser(rawAccount);
-    if (resolvedUser) {
-      return res.json({
-        success: true,
-        status: true,
-        message: "Account resolved successfully",
-        account_name: resolvedUser.accountName,
-        account_number: resolvedUser.accountNumber,
-        bank_name: "PalmPay",
-        bank_code: "999991",
-        data: {
-          account_number: resolvedUser.accountNumber,
+    // 1. If it's a PalmPay bank selection, check internal database first
+    if (isPalmPayCode) {
+      const resolvedUser = await resolvePalmPayUser(rawAccount);
+      if (resolvedUser) {
+        return res.json({
+          success: true,
+          status: true,
+          message: "Account resolved successfully via PalmPay Directory",
           account_name: resolvedUser.accountName,
-          bank_code: "999991",
-          bank_id: 999991,
+          account_number: resolvedUser.accountNumber,
           bank_name: "PalmPay",
-        },
-      });
+          bank_code: "999991",
+          data: {
+            account_number: resolvedUser.accountNumber,
+            account_name: resolvedUser.accountName,
+            bank_code: "999991",
+            bank_id: 999991,
+            bank_name: "PalmPay",
+          },
+        });
+      }
     }
 
     // 2. Query Paystack for external banks or PalmPay accounts not in local Firestore

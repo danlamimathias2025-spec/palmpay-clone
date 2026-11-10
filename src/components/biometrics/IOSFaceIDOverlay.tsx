@@ -26,8 +26,8 @@ export default function IOSFaceIDOverlay({
     setPhase('scanning');
     setErrorText('');
 
-    // Wait briefly to show scanning animation
-    await new Promise((r) => setTimeout(r, 600));
+    // Wait 4 seconds scanning before verifying
+    await new Promise((r) => setTimeout(r, 4000));
     setPhase('verifying');
 
     const res = await authenticateWithBiometrics({
@@ -53,17 +53,23 @@ export default function IOSFaceIDOverlay({
   }, []);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl animate-fade-in select-none">
-      {/* iOS Modal Container */}
-      <div className="w-[310px] bg-[#1c1c1e]/90 backdrop-blur-2xl border border-white/10 rounded-[38px] p-6 text-center shadow-[0_25px_60px_rgba(0,0,0,0.85)] relative overflow-hidden font-sans">
-        {/* Subtle iOS top camera notch indicator preview */}
-        <div className="w-20 h-4 bg-black/80 rounded-full mx-auto mb-4 border border-white/5 flex items-center justify-center gap-1.5">
-          <div className="w-2 h-2 rounded-full bg-blue-500/80 animate-pulse" />
-          <div className="w-1.5 h-1.5 rounded-full bg-white/20" />
+    <div className="fixed inset-0 z-50 flex flex-col items-center justify-start p-4 pt-8 bg-black/85 backdrop-blur-2xl animate-fade-in select-none">
+      {/* iOS TrueDepth Camera Island Notch at Top */}
+      <div className="w-32 h-7 bg-black rounded-full mx-auto mb-6 border border-white/10 flex items-center justify-between px-3.5 shadow-2xl">
+        {/* Camera lens */}
+        <div className="w-2.5 h-2.5 rounded-full bg-[#111] border border-white/20 flex items-center justify-center">
+          <div className="w-1 h-1 rounded-full bg-blue-500/80 animate-pulse" />
         </div>
+        {/* Speaker grill */}
+        <div className="w-10 h-1 bg-white/20 rounded-full" />
+        {/* IR Dot projector sensor */}
+        <div className="w-2 h-2 rounded-full bg-[#111] border border-white/20" />
+      </div>
 
+      {/* iOS Face ID Modal Container positioned directly below camera notch */}
+      <div className="w-[320px] bg-[#1c1c1e]/95 backdrop-blur-3xl border border-white/15 rounded-[38px] p-6 text-center shadow-[0_30px_70px_rgba(0,0,0,0.9)] relative overflow-hidden font-sans">
         {/* Title & App Subtitle */}
-        <div className="mb-5">
+        <div className="mb-4">
           <h3 className="text-xl font-extrabold text-white tracking-tight font-sans">
             Face ID
           </h3>
@@ -73,7 +79,7 @@ export default function IOSFaceIDOverlay({
         </div>
 
         {/* iOS Face ID Visual Container */}
-        <div className="relative my-4 mx-auto w-32 h-32 flex items-center justify-center">
+        <div className="relative my-3 mx-auto w-28 h-28 flex items-center justify-center">
           {/* Outer Squircle Box with glowing corners */}
           <div
             className={`w-32 h-32 rounded-[28px] border-2 flex items-center justify-center relative overflow-hidden transition-all duration-500 ${
@@ -91,6 +97,14 @@ export default function IOSFaceIDOverlay({
                 <div className="absolute top-2 right-2 w-3.5 h-3.5 border-t-2 border-r-2 border-cyan-400 rounded-tr" />
                 <div className="absolute bottom-2 left-2 w-3.5 h-3.5 border-b-2 border-l-2 border-cyan-400 rounded-bl" />
                 <div className="absolute bottom-2 right-2 w-3.5 h-3.5 border-b-2 border-r-2 border-cyan-400 rounded-br" />
+              </>
+            )}
+
+            {/* Lottie-style radiating scanning feedback rings */}
+            {(phase === 'scanning' || phase === 'verifying') && (
+              <>
+                <div className="absolute inset-0 rounded-[28px] border border-cyan-400/50 animate-ping opacity-50 pointer-events-none" />
+                <div className="absolute -inset-2 rounded-[32px] border border-blue-400/30 animate-pulse opacity-40 pointer-events-none" />
               </>
             )}
 

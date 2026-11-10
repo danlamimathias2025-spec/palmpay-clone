@@ -122,6 +122,46 @@ export default function SecurityCenterModal({ onClose, userProfile }: SecurityCe
               </button>
             </div>
 
+            {/* Biometric Login Mode Switch Toggle (Face ID vs In-Screen Sensor) */}
+            <div className="pt-2.5 border-t border-white/5 flex items-center justify-between text-xs">
+              <div>
+                <p className="font-bold text-white">Biometric Login Type</p>
+                <p className="text-[10px] text-white/50">Choose authentication interface</p>
+              </div>
+              <div className="flex items-center bg-black/40 p-1 rounded-xl border border-white/10">
+                <button
+                  type="button"
+                  onClick={() => {
+                    localStorage.setItem('palmpay_biometric_pref', 'touch');
+                    setBioMessage('In-Screen Sensor set as default');
+                    setTimeout(() => setBioMessage(null), 2000);
+                  }}
+                  className={`px-3 py-1 rounded-lg text-[10px] font-bold transition-all ${
+                    (localStorage.getItem('palmpay_biometric_pref') || 'touch') === 'touch'
+                      ? 'bg-emerald-500 text-black shadow-md'
+                      : 'text-white/60 hover:text-white'
+                  }`}
+                >
+                  In-Screen
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    localStorage.setItem('palmpay_biometric_pref', 'faceid');
+                    setBioMessage('iOS Face ID set as default');
+                    setTimeout(() => setBioMessage(null), 2000);
+                  }}
+                  className={`px-3 py-1 rounded-lg text-[10px] font-bold transition-all ${
+                    localStorage.getItem('palmpay_biometric_pref') === 'faceid'
+                      ? 'bg-cyan-400 text-black shadow-md'
+                      : 'text-white/60 hover:text-white'
+                  }`}
+                >
+                  Face ID
+                </button>
+              </div>
+            </div>
+
             {/* Real-time Hardware Status Row */}
             <div className="flex items-center justify-between pt-1 border-t border-white/5 text-xs">
               <span className="text-[11px] text-white/60">Hardware Protection:</span>

@@ -85,9 +85,9 @@ export async function authenticateWithBiometrics(options: {
  * Saves preferred biometric mode ('faceid' or 'touch') in localStorage.
  */
 export function getBiometricPreference(): BiometricMode {
-  if (typeof window === 'undefined') return 'faceid';
+  if (typeof window === 'undefined') return 'touch';
   const pref = localStorage.getItem('palmpay_biometric_pref');
-  return (pref === 'touch' ? 'touch' : 'faceid');
+  return (pref === 'faceid' ? 'faceid' : 'touch');
 }
 
 export function setBiometricPreference(pref: BiometricMode): void {

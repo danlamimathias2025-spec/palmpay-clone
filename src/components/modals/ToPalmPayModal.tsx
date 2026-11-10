@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ArrowLeft,
   Clock,
@@ -68,6 +68,7 @@ export default function ToPalmPayModal({
   const [verifying, setVerifying] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [accountError, setAccountError] = useState('');
   const [showBiometricConfirm, setShowBiometricConfirm] = useState(false);
 
   // Format Account with Spaces (e.g. "915 571 4846")
@@ -94,80 +95,46 @@ export default function ToPalmPayModal({
     if (clean.length < 10) return;
 
     setVerifying(true);
+    setAccountError('');
+    setRecipientName('');
 
     try {
-      let foundUserId: string | null = null;
-      let foundUserData: any = null;
-
-      try {
-        const usersCol = collection(db, 'users');
-        const searchCandidates = [clean, '0' + clean, clean.slice(-10)];
-
-        for (const candidate of searchCandidates) {
-          const docSnap = await getDoc(doc(db, 'users', candidate));
-          if (docSnap.exists() && docSnap.data()?.fullName) {
-            foundUserId = docSnap.id;
-            foundUserData = docSnap.data();
-            break;
-          }
-        }
-
-        if (!foundUserData) {
-          const qAcc = query(usersCol, where('accountNumber', '==', clean.slice(-10)));
-          const qAccSnap = await getDocs(qAcc);
-          if (!qAccSnap.empty) {
-            foundUserId = qAccSnap.docs[0].id;
-            foundUserData = qAccSnap.docs[0].data();
-          }
-        }
-      } catch (err) {
-        console.warn('Firestore direct search error:', err);
-      }
-
-      if (foundUserData && foundUserData.fullName) {
-        setRecipientName(foundUserData.fullName.toUpperCase());
-        setRecipientUserId(foundUserId);
-        setRecipientAccountNumber(foundUserData.accountNumber || clean.slice(-10));
-        setShowConfirmSheet(true);
-        setVerifying(false);
-        return;
-      }
-
-      // Query API fallback
+      // Resolve exclusively via server-side API which now prioritizes Paystack (even for PalmPay)
       const res = await fetch('/api/resolve-palmpay', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone: clean }),
       });
+      const data = await res.json();
 
-      if (res.ok) {
-        const data = await res.json();
-        if (data.account_name) {
-          setRecipientName(data.account_name.toUpperCase());
-          setRecipientUserId(clean);
-          setRecipientAccountNumber(clean.slice(-10));
-          setShowConfirmSheet(true);
-          setVerifying(false);
-          return;
-        }
+      if (res.ok && data.account_name) {
+        setRecipientName(data.account_name.toUpperCase());
+        setRecipientUserId(data.account_number || clean);
+        setRecipientAccountNumber(data.account_number || clean.slice(-10));
+        // Manual continue required
+      } else {
+        setAccountError(data?.message || 'Account not found in PalmPay directory. Please enter a correct mobile number.');
       }
-
-      // Default fallback recipient name
-      const fallbackNames = ['JERRY EJI', 'PEACE DANLAMI', 'MUSA IBRAHIM', 'ABUBAKAR GARBA'];
-      const hash = clean.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-      setRecipientName(fallbackNames[hash % fallbackNames.length]);
-      setRecipientUserId(clean);
-      setRecipientAccountNumber(clean.slice(-10));
-      setShowConfirmSheet(true);
-    } catch {
-      setRecipientName('JERRY EJI');
-      setRecipientUserId(clean);
-      setRecipientAccountNumber(clean.slice(-10));
-      setShowConfirmSheet(true);
+    } catch (err) {
+      console.error('PalmPay resolution error:', err);
+      setAccountError('Unable to verify user. Please check your connection or mobile number.');
     } finally {
       setVerifying(false);
     }
   };
+
+  // Debounced Effect for ToPalmPay
+  useEffect(() => {
+    const clean = recipientInput.replace(/\D/g, '');
+    if (clean.length >= 10) {
+      const timer = setTimeout(() => {
+        resolvePalmPayUser(clean);
+      }, 600);
+      return () => clearTimeout(timer);
+    } else {
+      setRecipientName('');
+    }
+  }, [recipientInput]);
 
   // Execute Transfer
   const executeTransfer = async (numAmount: number) => {
@@ -267,7 +234,7 @@ export default function ToPalmPayModal({
         sessionId: generatePalmPaySessionId(rawNow, '999991', txRef),
       };
 
-      await addDoc(collection(db, 'users', cleanPhone, 'transactions'), senderTxRecord).catch(console.warn);
+      // Debit transaction record for sender (handled by App.tsx)
 
       if (onSuccessTransaction) {
         onSuccessTransaction(senderTxRecord);
@@ -410,9 +377,7 @@ export default function ToPalmPayModal({
                     onChange={(e) => {
                       const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
                       setRecipientInput(digits);
-                      if (digits.length === 10) {
-                        resolvePalmPayUser(digits);
-                      }
+                      if (accountError) setAccountError('');
                     }}
                     className="w-full bg-transparent text-xl font-extrabold text-white tracking-widest focus:outline-none placeholder-white/20 font-sans"
                     autoFocus
@@ -428,6 +393,7 @@ export default function ToPalmPayModal({
                     onClick={() => {
                       setRecipientInput('');
                       setRecipientName('');
+                      setAccountError('');
                       setShowConfirmSheet(false);
                     }}
                     className="text-white/40 hover:text-white transition-colors shrink-0 p-0.5"
@@ -441,6 +407,12 @@ export default function ToPalmPayModal({
                 <div className="flex items-center gap-1.5 text-xs text-[#facc15] mt-2 font-medium">
                   <Loader2 size={13} className="animate-spin" />
                   <span>Checking PalmPay recipient directory...</span>
+                </div>
+              )}
+              {accountError && (
+                <div className="flex items-center gap-1.5 text-xs text-rose-500 mt-2 font-bold animate-pulse">
+                  <XCircle size={14} className="shrink-0" />
+                  <span>{accountError}</span>
                 </div>
               )}
             </div>
@@ -471,6 +443,30 @@ export default function ToPalmPayModal({
                   <ChevronRight size={18} className="text-white/40" />
                 </button>
               </div>
+            </div>
+
+            {/* Manual Continue Button */}
+            <div className="pt-2">
+              <button
+                type="button"
+                disabled={verifying || !recipientName || cleanAcc.length !== 10}
+                onClick={() => setShowConfirmSheet(true)}
+                className="w-full py-4 rounded-2xl bg-[#facc15] hover:bg-[#eab308] text-[#080e1e] font-extrabold text-sm shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-30"
+              >
+                {verifying ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    <span>Verifying User...</span>
+                  </>
+                ) : (
+                  <span>Continue</span>
+                )}
+              </button>
+              {!recipientName && cleanAcc.length === 10 && !verifying && !accountError && (
+                <p className="text-[10px] text-white/40 text-center mt-2 animate-pulse">
+                  Verifying PalmPay account...
+                </p>
+              )}
             </div>
 
           </div>

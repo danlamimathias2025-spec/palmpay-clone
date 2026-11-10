@@ -4,14 +4,17 @@ import { generatePalmPayAccountNumber } from '../utils/account';
 import LoadingExecutionOverlay from './LoadingExecutionOverlay';
 
 export default function RegistrationScreen({
+  step,
+  setStep,
   onRegister,
   onSwitchToLogin,
 }: {
+  step: 'phone' | 'details';
+  setStep: (s: 'phone' | 'details') => void;
   onRegister: (data: any) => void;
   onSwitchToLogin: () => void;
 }) {
-  // Step State: 'phone' or 'details'
-  const [step, setStep] = useState<'phone' | 'details'>('phone');
+  // Step State is managed externally
   
   // Registration States
   const [phoneNumber, setPhoneNumber] = useState('');

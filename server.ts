@@ -396,43 +396,29 @@ async function startServer() {
       String(bankCode).toLowerCase().includes("palm") ||
       bankCode === "default";
 
-    // 1. If it's a PalmPay bank selection, check internal database first
-    if (isPalmPayCode) {
-      const resolvedUser = await resolvePalmPayUser(rawAccount);
-      if (resolvedUser) {
-        return res.json({
-          success: true,
-          status: true,
-          message: "Account resolved successfully via PalmPay Directory",
-          account_name: resolvedUser.accountName,
-          account_number: resolvedUser.accountNumber,
-          bank_name: "PalmPay",
-          bank_code: "999991",
-          data: {
-            account_number: resolvedUser.accountNumber,
-            account_name: resolvedUser.accountName,
-            bank_code: "999991",
-            bank_id: 999991,
-            bank_name: "PalmPay",
-          },
-        });
-      }
+    // 1. Determine candidate bank codes
+    const candidateBankCodes: string[] = [];
+    if (bankCode && !isPalmPayCode) {
+      candidateBankCodes.push(String(bankCode).trim());
+    } else {
+      // PalmPay Paystack codes: 999991 and 100033
+      candidateBankCodes.push("999991", "100033");
     }
 
-    // 2. Query Paystack for external banks or PalmPay accounts not in local Firestore
+    // 2. Query Paystack as the exclusive source for thorough validation
     const apiKey = getBankApiKey(req);
     const clean10 = String(rawAccount).replace(/\D/g, "").slice(-10);
 
-    if (apiKey && clean10.length === 10) {
-      // Determine candidate bank codes
-      const candidateBankCodes: string[] = [];
-      if (bankCode && !isPalmPayCode) {
-        candidateBankCodes.push(String(bankCode).trim());
-      } else {
-        // PalmPay Paystack codes: 999991 and 100033
-        candidateBankCodes.push("999991", "100033");
-      }
+    if (!apiKey) {
+      return res.status(500).json({
+        success: false,
+        status: false,
+        error: "Configuration Error",
+        message: "Payment gateway key not configured. Unable to validate account.",
+      });
+    }
 
+    if (clean10.length === 10) {
       for (const code of candidateBankCodes) {
         try {
           console.log(`[Paystack Resolution] Resolving account ${clean10} with bank code ${code}...`);
@@ -443,8 +429,11 @@ async function startServer() {
                 Authorization: `Bearer ${apiKey}`,
                 "Content-Type": "application/json",
               },
+              // Add a reasonable timeout for fetch to detect network issues
+              signal: AbortSignal.timeout(10000) 
             }
           );
+          
           const data = await response.json();
           console.log(`[Paystack Resolution] Bank ${code} response:`, data);
 
@@ -458,23 +447,35 @@ async function startServer() {
               bank_code: code,
               data: data.data,
             });
+          } else {
+             // If Paystack returned a specific error (e.g. invalid account), return that
+             if (data?.message && (data.message.includes("not found") || data.message.includes("Could not resolve"))) {
+                return res.status(404).json({
+                  success: false,
+                  status: false,
+                  error: "Account not verified",
+                  message: `The account number ${clean10} was not found on the bank directory. Please check the number and try again.`,
+                });
+             }
           }
-        } catch (err) {
-          console.warn(`[Paystack Resolution] Error for bank ${code}:`, err);
+        } catch (err: any) {
+          console.warn(`[Paystack Resolution] Network/Connection error for bank ${code}:`, err);
+          // Distinguish between API error and network error
+          return res.status(503).json({
+            success: false,
+            status: false,
+            error: "Network Error",
+            message: "Unable to connect to the bank directory. Please check your internet connection and try again.",
+          });
         }
       }
     }
-
-    // 3. Fallback when not resolved via Firestore or Paystack
-    const notFoundMsg = !apiKey
-      ? `Account ${clean10 || rawAccount} not verified. Paystack key not detected or account does not exist.`
-      : `Account ${clean10 || rawAccount} could not be resolved on Paystack. Please check the account number and bank.`;
 
     return res.status(404).json({
       success: false,
       status: false,
       error: "Account not verified",
-      message: notFoundMsg,
+      message: `Account ${clean10 || rawAccount} could not be resolved. Please verify the account number and selected bank.`,
     });
   };
 

@@ -70,19 +70,7 @@ export default function ElectricityModal({ balance, setBalance, setUserProfile, 
         timestamp: { seconds: Math.floor(Date.now() / 1000) },
       };
 
-      if (userId) {
-        try {
-          const userRef = doc(db, 'users', userId);
-          const txRef = collection(userRef, 'transactions');
-          await addDoc(txRef, {
-            ...newTx,
-            timestamp: serverTimestamp(),
-          });
-          await setDoc(userRef, { balance: increment(-amt) }, { merge: true });
-        } catch (err) {
-          console.warn('Firestore sync fallback:', err);
-        }
-      }
+      // Debit transaction handled by App.tsx
 
       const newBal = balance - amt;
       setBalance(newBal);

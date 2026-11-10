@@ -120,21 +120,7 @@ export default function AddFundsModal({
       timestamp: { seconds: Math.floor(Date.now() / 1000) },
     };
 
-    try {
-      const rawUserId = userProfile?.phoneNumber;
-      const userId = normalizePhoneNumber(rawUserId) || rawUserId;
-      if (userId) {
-        const userRef = doc(db, 'users', userId);
-        const transactionsRef = collection(userRef, 'transactions');
-        await addDoc(transactionsRef, {
-          ...newTransaction,
-          timestamp: serverTimestamp(),
-        });
-        await setDoc(userRef, { balance: increment(num) }, { merge: true });
-      }
-    } catch (err) {
-      console.warn('Firestore fallback sync:', err);
-    }
+      // Transaction recording handled by App.tsx
 
     const newBal = balance + num;
     setBalance(newBal);

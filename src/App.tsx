@@ -33,6 +33,7 @@ import {
   sendOutsideAppNotification,
   requestNotificationPermission,
 } from './utils/alerts';
+import { App as CapacitorApp } from '@capacitor/app';
 
 // Modals
 import TransferModal from './components/TransferModal';
@@ -70,6 +71,8 @@ export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [showHistoryView, setShowHistoryView] = useState(false);
+  const [loginStep, setLoginStep] = useState<'phone' | 'password'>('phone');
+  const [registerStep, setRegisterStep] = useState<'phone' | 'details'>('phone');
 
   // User Profile - isolated user profile state
   const [userProfile, setUserProfile] = useState<{
@@ -427,6 +430,155 @@ export default function App() {
     return () => mediaQuery.removeEventListener('change', handleSystemThemeChange);
   }, [themeMode]);
 
+  // System Back Button Handling for Capacitor (Android/iOS)
+  useEffect(() => {
+    const handleBackButton = async () => {
+      // Priority 0: Splash Screen
+      if (showSplash) return;
+
+      // Priority 1: Open Overlays/Small Modals (highest priority)
+      if (selectedTransaction) {
+        setSelectedTransaction(null);
+        return;
+      }
+      if (activeFlashAlert) {
+        setActiveFlashAlert(null);
+        return;
+      }
+      if (showNotifications) {
+        setShowNotifications(false);
+        return;
+      }
+      if (claimModalData) {
+        setClaimModalData(null);
+        return;
+      }
+
+      // Priority 2: Major Feature Modals
+      if (showTransferModal) {
+        setShowTransferModal(false);
+        return;
+      }
+      if (showToPalmPayModal) {
+        setShowToPalmPayModal(false);
+        return;
+      }
+      if (showAddFundsModal) {
+        setShowAddFundsModal(false);
+        return;
+      }
+      if (showAirtimeModal) {
+        setShowAirtimeModal(false);
+        return;
+      }
+      if (showDataModal) {
+        setShowDataModal(false);
+        return;
+      }
+      if (showBettingModal) {
+        setShowBettingModal(false);
+        return;
+      }
+      if (showElectricityModal) {
+        setShowElectricityModal(false);
+        return;
+      }
+      if (showReferModal) {
+        setShowReferModal(false);
+        return;
+      }
+      if (showCardsModal) {
+        setShowCardsModal(false);
+        return;
+      }
+      if (showInsuranceModal) {
+        setShowInsuranceModal(false);
+        return;
+      }
+      if (showMoreServicesModal) {
+        setShowMoreServicesModal(false);
+        return;
+      }
+      if (showSupportModal) {
+        setShowSupportModal(false);
+        return;
+      }
+      if (showSecurityModal) {
+        setShowSecurityModal(false);
+        return;
+      }
+
+      // Priority 3: Major Views (History View)
+      if (showHistoryView) {
+        setShowHistoryView(false);
+        return;
+      }
+
+      // Priority 4: Auth Flow internal navigation
+      if (!isLoggedIn) {
+        if (authMode === 'register') {
+          if (registerStep === 'details') {
+            setRegisterStep('phone');
+          } else {
+            setAuthMode('login');
+          }
+          return;
+        }
+        if (authMode === 'login') {
+          if (loginStep === 'password') {
+            setLoginStep('phone');
+            return;
+          }
+        }
+        // If we are at the very beginning of login, let it exit
+        CapacitorApp.exitApp();
+        return;
+      }
+
+      // Priority 5: Tab navigation back to home
+      if (activeTab !== 'home') {
+        setActiveTab('home');
+        return;
+      }
+
+      // If we are on home and nothing is open, exit app
+      CapacitorApp.exitApp();
+    };
+
+    const listener = CapacitorApp.addListener('backButton', ({ canGoBack }) => {
+      handleBackButton();
+    });
+
+    return () => {
+      listener.then(l => l.remove());
+    };
+  }, [
+    isLoggedIn,
+    activeTab,
+    showHistoryView,
+    selectedTransaction,
+    showTransferModal,
+    showToPalmPayModal,
+    showAddFundsModal,
+    showAirtimeModal,
+    showDataModal,
+    showBettingModal,
+    showElectricityModal,
+    showReferModal,
+    showCardsModal,
+    showInsuranceModal,
+    showMoreServicesModal,
+    showSupportModal,
+    showSecurityModal,
+    showNotifications,
+    claimModalData,
+    activeFlashAlert,
+    loginStep,
+    registerStep,
+    showSplash,
+    authMode
+  ]);
+
   const toggleDarkMode = () => {
     // Cycle theme modes: system -> dark -> light -> system
     setThemeMode((prev) => {
@@ -538,8 +690,6 @@ export default function App() {
       if (exists) return prev;
       return [formattedItem, ...prev];
     });
-
-    triggerManualFlashAlert(formattedItem);
   };
 
   const handleClaimPromo = () => {
@@ -604,6 +754,8 @@ export default function App() {
     if (authMode === 'login') {
       return (
         <LoginScreen
+          step={loginStep}
+          setStep={setLoginStep}
           onBiometricLogin={async (phone) => {
             await ensureFirebaseAuth();
             const cleanPhone = (phone || localStorage.getItem('palmpay_active_session_phone') || localStorage.getItem('palmpay_last_login_phone') || '').trim().replace(/\D/g, '');
@@ -841,6 +993,8 @@ export default function App() {
     } else {
       return (
         <RegistrationScreen
+          step={registerStep}
+          setStep={setRegisterStep}
           onRegister={async (data) => {
             await ensureFirebaseAuth();
             const cleanPhone = data.phoneNumber.trim().replace(/\D/g, '');

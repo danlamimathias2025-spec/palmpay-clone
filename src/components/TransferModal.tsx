@@ -122,7 +122,7 @@ export default function TransferModal({
     setResolvedAccountName('');
 
     try {
-      // Resolve exclusively via server-side API which uses Paystack directory
+      // Resolve exclusively via server-side API which uses Paystack directory as primary source
       const res = await fetch('/api/resolve-account', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -134,29 +134,37 @@ export default function TransferModal({
         setResolvedAccountName(data.account_name.toUpperCase());
         setSelectedBankCode(bCode);
         setSelectedBankName(bName);
-        setShowConfirmSheet(true);
+        // We no longer automatically show confirm sheet here
       } else {
-        // Use server-provided error message if available
-        setAccountError(data?.message || 'Account number not found. Please verify and try again.');
+        setAccountError(data?.message || 'Incorrect account number. Please check the details and try again.');
       }
     } catch (err) {
       console.error('Resolution error:', err);
-      setAccountError('Unable to resolve account. Please check your connection or the details.');
+      setAccountError('Unable to resolve account. Please check your connection or input a correct account number.');
     } finally {
       setVerifying(false);
     }
   };
 
-  // Handle bank selection from suggestions or list
+  // Debounced Resolution Effect
+  useEffect(() => {
+    const cleanAcc = accountNumber.replace(/\D/g, '');
+    if (cleanAcc.length === 10 && selectedBankCode) {
+      const timer = setTimeout(() => {
+        resolveAccount(cleanAcc, selectedBankCode, selectedBankName);
+      }, 600); // 600ms debounce
+      return () => clearTimeout(timer);
+    } else {
+      setResolvedAccountName('');
+    }
+  }, [accountNumber, selectedBankCode]);
+
+  // Handle bank selection
   const handleSelectBank = (bCode: string, bName: string) => {
     setSelectedBankCode(bCode);
     setSelectedBankName(bName);
     setShowBankPicker(false);
-
-    const cleanAcc = accountNumber.replace(/\D/g, '');
-    if (cleanAcc.length === 10) {
-      resolveAccount(cleanAcc, bCode, bName);
-    }
+    setAccountError('');
   };
 
   // Execute Money Transfer
@@ -221,8 +229,7 @@ export default function TransferModal({
         sessionId: generatePalmPaySessionId(rawNow, selectedBankCode || '999991', txRef),
       };
 
-      // Add to subcollection
-      await addDoc(collection(db, 'users', cleanPhone, 'transactions'), txRecord).catch(console.warn);
+      // Debit transaction record for sender (handled by App.tsx)
 
       if (onSuccessTransaction) {
         onSuccessTransaction(txRecord);
@@ -440,6 +447,30 @@ export default function TransferModal({
                   <ChevronRight size={18} className="text-white/40" />
                 </button>
               </div>
+            </div>
+
+            {/* Manual Continue Button */}
+            <div className="pt-2">
+              <button
+                type="button"
+                disabled={verifying || !resolvedAccountName || cleanAcc.length !== 10 || !selectedBankCode}
+                onClick={() => setShowConfirmSheet(true)}
+                className="w-full py-4 rounded-2xl bg-[#facc15] hover:bg-[#eab308] text-[#080e1e] font-extrabold text-sm shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-30"
+              >
+                {verifying ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    <span>Verifying Account...</span>
+                  </>
+                ) : (
+                  <span>Continue</span>
+                )}
+              </button>
+              {!resolvedAccountName && cleanAcc.length === 10 && selectedBankCode && !verifying && !accountError && (
+                <p className="text-[10px] text-white/40 text-center mt-2 animate-pulse">
+                  Waiting for account verification...
+                </p>
+              )}
             </div>
 
           </div>

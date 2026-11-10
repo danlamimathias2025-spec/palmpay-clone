@@ -6,16 +6,19 @@ import BiometricAuthOverlay from './BiometricAuthOverlay';
 import LoadingExecutionOverlay from './LoadingExecutionOverlay';
 
 export default function LoginScreen({
+  step,
+  setStep,
   onLogin,
   onBiometricLogin,
   onSwitchToRegister,
 }: {
+  step: 'phone' | 'password';
+  setStep: (s: 'phone' | 'password') => void;
   onLogin: (phone: string, password: string) => Promise<void> | void;
   onBiometricLogin?: (phone: string) => Promise<void> | void;
   onSwitchToRegister: () => void;
 }) {
-  // Step State: 'phone' or 'password'
-  const [step, setStep] = useState<'phone' | 'password'>('phone');
+  // Step State is now managed externally
   const [phoneNumber, setPhoneNumber] = useState(() => localStorage.getItem('palmpay_last_login_phone') || '');
   const [password, setPassword] = useState('');
   const [showPassword, setPasswordVisible] = useState(false);

@@ -61,19 +61,7 @@ export default function DataModal({
         timestamp: { seconds: Math.floor(Date.now() / 1000) },
       };
 
-      if (userId) {
-        try {
-          const userRef = doc(db, 'users', userId);
-          const txRef = collection(userRef, 'transactions');
-          await addDoc(txRef, {
-            ...newTx,
-            timestamp: serverTimestamp(),
-          });
-          await setDoc(userRef, { balance: increment(-selectedPlan.price) }, { merge: true });
-        } catch (err) {
-          console.warn('Firestore fallback sync:', err);
-        }
-      }
+      // Debit transaction handled by App.tsx
 
       const newBal = balance - selectedPlan.price;
       setBalance(newBal);

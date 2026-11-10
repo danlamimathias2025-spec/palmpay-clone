@@ -3,17 +3,19 @@ import { X, Trophy, Check, Loader2 } from 'lucide-react';
 import { db } from '../../lib/firebase';
 import { doc, collection, addDoc, setDoc, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
 import { generatePalmPayTransactionId, generatePalmPaySessionId, generatePalmPayRemark } from '../../utils/transactionFormat';
+import { normalizePhoneNumber } from '../../utils/account';
 import LoadingExecutionOverlay from '../LoadingExecutionOverlay';
 
 interface BettingModalProps {
   balance: number;
   setBalance: (b: number) => void;
+  setUserProfile?: React.Dispatch<React.SetStateAction<any>>;
   userProfile?: any;
   onClose: () => void;
   onSuccessTransaction?: (tx: any) => void;
 }
 
-export default function BettingModal({ balance, setBalance, userProfile, onClose, onSuccessTransaction }: BettingModalProps) {
+export default function BettingModal({ balance, setBalance, setUserProfile, userProfile, onClose, onSuccessTransaction }: BettingModalProps) {
   const [platform, setPlatform] = useState('SportyBet');
   const [customerId, setCustomerId] = useState('');
   const [amount, setAmount] = useState('1000');
@@ -30,7 +32,8 @@ export default function BettingModal({ balance, setBalance, userProfile, onClose
 
     setIsProcessing(true);
     try {
-      const userId = userProfile?.phoneNumber;
+      const rawUserId = userProfile?.phoneNumber;
+      const userId = normalizePhoneNumber(rawUserId) || rawUserId;
       const now = new Date();
       const txRef = `BET-${Date.now()}`;
       const authenticTxId = generatePalmPayTransactionId(now, txRef);
@@ -74,7 +77,11 @@ export default function BettingModal({ balance, setBalance, userProfile, onClose
         }
       }
 
-      setBalance(balance - amt);
+      const newBal = balance - amt;
+      setBalance(newBal);
+      if (setUserProfile) {
+        setUserProfile((prev: any) => prev ? { ...prev, balance: newBal } : prev);
+      }
       if (onSuccessTransaction) {
         onSuccessTransaction(newTx);
       }

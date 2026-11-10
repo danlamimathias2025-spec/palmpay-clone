@@ -511,7 +511,8 @@ export default function App() {
     };
 
     // Save to Firestore subcollection and root collection if userId is present
-    const userId = userProfile.phoneNumber;
+    const rawUserId = userProfile.phoneNumber;
+    const userId = normalizePhoneNumber(rawUserId) || rawUserId;
     if (userId) {
       try {
         const userRef = doc(db, 'users', userId);
@@ -568,7 +569,8 @@ export default function App() {
         category: 'other' as const,
       };
 
-      const userId = userProfile.phoneNumber;
+      const rawUserId = userProfile.phoneNumber;
+      const userId = normalizePhoneNumber(rawUserId) || rawUserId;
       if (userId) {
         try {
           const userRef = doc(db, 'users', userId);
@@ -584,7 +586,11 @@ export default function App() {
         }
       }
 
-      setBalance((prev) => prev + bonus);
+      setBalance((prev) => {
+        const newB = prev + bonus;
+        setUserProfile((p) => (p ? { ...p, balance: newB } : p));
+        return newB;
+      });
       handleAddTransaction(tx);
       setClaimModalData(null);
     }
@@ -964,7 +970,8 @@ export default function App() {
                     senderName: 'PalmPay Flexi-Cash',
                   };
 
-                  const userId = userProfile.phoneNumber;
+                  const rawUserId = userProfile.phoneNumber;
+                  const userId = normalizePhoneNumber(rawUserId) || rawUserId;
                   if (userId) {
                     try {
                       const userRef = doc(db, 'users', userId);
@@ -980,7 +987,11 @@ export default function App() {
                     }
                   }
 
-                  setBalance((prev) => prev + amount);
+                  setBalance((prev) => {
+                    const newB = prev + amount;
+                    setUserProfile((p) => (p ? { ...p, balance: newB } : p));
+                    return newB;
+                  });
                   handleAddTransaction(tx);
                   alert(`₦${amount.toLocaleString()} has been disbursed to your Available Balance!`);
                   setActiveTab('home');
@@ -1002,7 +1013,8 @@ export default function App() {
                     recipient: 'Prime Wealth Savings',
                   };
 
-                  const userId = userProfile.phoneNumber;
+                  const rawUserId = userProfile.phoneNumber;
+                  const userId = normalizePhoneNumber(rawUserId) || rawUserId;
                   if (userId) {
                     try {
                       const userRef = doc(db, 'users', userId);
@@ -1018,7 +1030,11 @@ export default function App() {
                     }
                   }
 
-                  setBalance((prev) => prev - amt);
+                  setBalance((prev) => {
+                    const newB = prev - amt;
+                    setUserProfile((p) => (p ? { ...p, balance: newB } : p));
+                    return newB;
+                  });
                   handleAddTransaction(tx);
                 }}
               />
@@ -1037,7 +1053,8 @@ export default function App() {
                       senderName: 'PalmPay Reward Voucher',
                     };
 
-                    const userId = userProfile.phoneNumber;
+                    const rawUserId = userProfile.phoneNumber;
+                    const userId = normalizePhoneNumber(rawUserId) || rawUserId;
                     if (userId) {
                       try {
                         const userRef = doc(db, 'users', userId);
@@ -1053,7 +1070,11 @@ export default function App() {
                       }
                     }
 
-                    setBalance((prev) => prev + val);
+                    setBalance((prev) => {
+                      const newB = prev + val;
+                      setUserProfile((p) => (p ? { ...p, balance: newB } : p));
+                      return newB;
+                    });
                     handleAddTransaction(tx);
                   }
                 }}
@@ -1133,6 +1154,7 @@ export default function App() {
           <TransferModal
             balance={balance}
             setBalance={setBalance}
+            setUserProfile={setUserProfile}
             userProfile={userProfile}
             onClose={() => setShowTransferModal(false)}
             onSuccessTransaction={(tx) => {
@@ -1150,6 +1172,7 @@ export default function App() {
           <ToPalmPayModal
             balance={balance}
             setBalance={setBalance}
+            setUserProfile={setUserProfile}
             userProfile={userProfile}
             onClose={() => setShowToPalmPayModal(false)}
             onSuccessTransaction={(tx) => {
@@ -1167,6 +1190,7 @@ export default function App() {
           <AddFundsModal
             balance={balance}
             setBalance={setBalance}
+            setUserProfile={setUserProfile}
             userProfile={userProfile}
             onClose={() => setShowAddFundsModal(false)}
             onSuccessTransaction={handleAddTransaction}
@@ -1181,6 +1205,7 @@ export default function App() {
           <AirtimeModal
             balance={balance}
             setBalance={setBalance}
+            setUserProfile={setUserProfile}
             userProfile={userProfile}
             onClose={() => setShowAirtimeModal(false)}
             onSuccessTransaction={(tx) => {
@@ -1198,6 +1223,7 @@ export default function App() {
           <DataModal
             balance={balance}
             setBalance={setBalance}
+            setUserProfile={setUserProfile}
             userProfile={userProfile}
             onClose={() => setShowDataModal(false)}
             onSuccessTransaction={(tx) => {
@@ -1215,6 +1241,7 @@ export default function App() {
           <BettingModal
             balance={balance}
             setBalance={setBalance}
+            setUserProfile={setUserProfile}
             userProfile={userProfile}
             onClose={() => setShowBettingModal(false)}
             onSuccessTransaction={(tx) => {
@@ -1232,6 +1259,7 @@ export default function App() {
           <ElectricityModal
             balance={balance}
             setBalance={setBalance}
+            setUserProfile={setUserProfile}
             userProfile={userProfile}
             onClose={() => setShowElectricityModal(false)}
             onSuccessTransaction={(tx) => {

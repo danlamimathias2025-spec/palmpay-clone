@@ -1,9 +1,22 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { X, Gift } from 'lucide-react';
 import { db } from '../lib/firebase';
-import { doc, updateDoc, increment } from 'firebase/firestore';
+import { doc, setDoc, updateDoc, increment } from 'firebase/firestore';
+import { normalizePhoneNumber } from '../utils/account';
 
-export default function CouponModal({ onClose, userProfile, setBalance, balance }: { onClose: () => void, userProfile: any, setBalance: (b: number) => void, balance: number }) {
+export default function CouponModal({
+  onClose,
+  userProfile,
+  setBalance,
+  setUserProfile,
+  balance,
+}: {
+  onClose: () => void;
+  userProfile: any;
+  setBalance: (b: number) => void;
+  setUserProfile?: React.Dispatch<React.SetStateAction<any>>;
+  balance: number;
+}) {
   const [claimed, setClaimed] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -11,17 +24,25 @@ export default function CouponModal({ onClose, userProfile, setBalance, balance 
     setLoading(true);
     const bonus = Math.floor(Math.random() * 500) + 100; // Random bonus
     try {
-        const userRef = doc(db, 'users', userProfile.phoneNumber);
-        await updateDoc(userRef, {
-            balance: increment(bonus)
-        });
-        setBalance(balance + bonus);
-        setClaimed(true);
+      const rawUserId = userProfile?.phoneNumber;
+      const canonicalPhone = normalizePhoneNumber(rawUserId) || rawUserId;
+      if (canonicalPhone) {
+        const userRef = doc(db, 'users', canonicalPhone);
+        await setDoc(userRef, {
+          balance: increment(bonus),
+        }, { merge: true });
+      }
+      const newBal = balance + bonus;
+      setBalance(newBal);
+      if (setUserProfile) {
+        setUserProfile((prev: any) => prev ? { ...prev, balance: newBal } : prev);
+      }
+      setClaimed(true);
     } catch (error) {
-        console.error('Claim failed', error);
-        alert('Failed to claim coupon.');
+      console.error('Claim failed', error);
+      alert('Failed to claim coupon.');
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
   };
 

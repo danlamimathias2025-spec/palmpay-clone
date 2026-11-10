@@ -26,7 +26,7 @@ import {
   where,
   getDocs,
 } from 'firebase/firestore';
-import { normalizePalmPayAccountNumber } from '../../utils/account';
+import { normalizePalmPayAccountNumber, normalizePhoneNumber } from '../../utils/account';
 import {
   generatePalmPayTransactionId,
   generatePalmPaySessionId,
@@ -40,6 +40,7 @@ import LoadingExecutionOverlay from '../LoadingExecutionOverlay';
 interface ToPalmPayModalProps {
   balance: number;
   setBalance: (b: number) => void;
+  setUserProfile?: React.Dispatch<React.SetStateAction<any>>;
   onClose: () => void;
   userProfile: any;
   onSuccessTransaction?: (tx: any) => void;
@@ -48,6 +49,7 @@ interface ToPalmPayModalProps {
 export default function ToPalmPayModal({
   balance,
   setBalance,
+  setUserProfile,
   onClose,
   userProfile,
   onSuccessTransaction,
@@ -171,7 +173,8 @@ export default function ToPalmPayModal({
   const executeTransfer = async (numAmount: number) => {
     setLoading(true);
     try {
-      const cleanPhone = userProfile.phoneNumber || '08082076038';
+      const rawPhone = userProfile.phoneNumber || '08082076038';
+      const cleanPhone = normalizePhoneNumber(rawPhone) || rawPhone;
       const userRef = doc(db, 'users', cleanPhone);
       const userSnap = await getDoc(userRef);
 
@@ -192,10 +195,14 @@ export default function ToPalmPayModal({
       });
 
       setBalance(newBal);
+      if (setUserProfile) {
+        setUserProfile((prev: any) => prev ? { ...prev, balance: newBal } : prev);
+      }
 
       // Credit recipient balance if recipient exists
       if (recipientUserId) {
-        const recipRef = doc(db, 'users', recipientUserId);
+        const canonicalRecip = normalizePhoneNumber(recipientUserId) || recipientUserId;
+        const recipRef = doc(db, 'users', canonicalRecip);
         await updateDoc(recipRef, { balance: increment(numAmount) }).catch(console.warn);
 
         // Credit transaction record for recipient

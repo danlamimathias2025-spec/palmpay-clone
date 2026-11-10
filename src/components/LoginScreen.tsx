@@ -213,16 +213,32 @@ export default function LoginScreen({
                 <span>Log In / Next</span>
               </button>
 
-              {/* Fast Biometric Login Button */}
+              {/* Fast Biometric Login Buttons */}
               {phoneNumber.length >= 10 && (
-                <button
-                  type="button"
-                  onClick={() => setShowBiometricModal(true)}
-                  className="w-full py-3 rounded-2xl bg-white/[0.06] hover:bg-white/[0.1] border border-purple-500/30 text-purple-200 font-bold text-xs flex items-center justify-center gap-2 active:scale-95 transition-all shadow-md"
-                >
-                  <Fingerprint size={16} className="text-purple-400" />
-                  <span>Fast Biometric Login (Touch ID / Face ID)</span>
-                </button>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      localStorage.setItem('palmpay_biometric_pref', 'faceid');
+                      setShowBiometricModal(true);
+                    }}
+                    className="py-3 px-2 rounded-2xl bg-white/[0.06] hover:bg-white/[0.1] border border-cyan-500/30 text-cyan-200 font-bold text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-md"
+                  >
+                    <ScanFace size={16} className="text-cyan-400 shrink-0" />
+                    <span className="truncate">iOS Face ID</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      localStorage.setItem('palmpay_biometric_pref', 'touch');
+                      setShowBiometricModal(true);
+                    }}
+                    className="py-3 px-2 rounded-2xl bg-white/[0.06] hover:bg-white/[0.1] border border-emerald-500/30 text-emerald-200 font-bold text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-md"
+                  >
+                    <Fingerprint size={16} className="text-emerald-400 shrink-0" />
+                    <span className="truncate">One UI Touch</span>
+                  </button>
+                </div>
               )}
 
               {/* Explicit Sign Up button for new accounts */}
@@ -314,15 +330,31 @@ export default function LoginScreen({
               )}
             </button>
 
-            {/* Quick Biometrics Passkey Login Button */}
-            <button
-              type="button"
-              onClick={() => setShowBiometricModal(true)}
-              className="w-full py-3 rounded-2xl bg-white/[0.06] hover:bg-white/[0.1] border border-purple-500/30 text-purple-200 font-bold text-xs flex items-center justify-center gap-2 active:scale-95 transition-all shadow-md"
-            >
-              <Fingerprint size={16} className="text-purple-400" />
-              <span>Log in with Biometrics (Touch ID / Face ID)</span>
-            </button>
+            {/* Quick Biometrics Passkey Login Buttons */}
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  localStorage.setItem('palmpay_biometric_pref', 'faceid');
+                  setShowBiometricModal(true);
+                }}
+                className="py-3 px-2 rounded-2xl bg-white/[0.06] hover:bg-white/[0.1] border border-cyan-500/30 text-cyan-200 font-bold text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-md"
+              >
+                <ScanFace size={16} className="text-cyan-400 shrink-0" />
+                <span className="truncate">iOS Face ID</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  localStorage.setItem('palmpay_biometric_pref', 'touch');
+                  setShowBiometricModal(true);
+                }}
+                className="py-3 px-2 rounded-2xl bg-white/[0.06] hover:bg-white/[0.1] border border-emerald-500/30 text-emerald-200 font-bold text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-md"
+              >
+                <Fingerprint size={16} className="text-emerald-400 shrink-0" />
+                <span className="truncate">One UI Touch</span>
+              </button>
+            </div>
 
             {/* Toggle back to phone */}
             <div className="flex items-center justify-between text-xs font-bold pt-1">

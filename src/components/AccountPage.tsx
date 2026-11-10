@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Camera, ChevronRight, Save, ShieldCheck, Copy, Check, Loader2 } from 'lucide-react';
 import { doc, setDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { generatePalmPayAccountNumber } from '../utils/account';
+import { generatePalmPayAccountNumber, normalizePhoneNumber } from '../utils/account';
 import ProfilePhotoModal from './modals/ProfilePhotoModal';
 
 export default function AccountPage({ userProfile, setUserProfile, onLogout }: { userProfile: any, setUserProfile: any, onLogout: () => void }) {
@@ -48,15 +48,18 @@ export default function AccountPage({ userProfile, setUserProfile, onLogout }: {
   const handleSave = async () => {
     setSaving(true);
     try {
-        const userRef = doc(db, 'users', localProfile.phoneNumber);
-        const { ...dataToSave } = localProfile;
+        const canonicalPhone = normalizePhoneNumber(localProfile.phoneNumber) || localProfile.phoneNumber;
+        const userRef = doc(db, 'users', canonicalPhone);
+        const { balance: localBal, ...dataToSave } = localProfile;
+        const activeBalance = Number(userProfile?.balance ?? localBal);
         await setDoc(userRef, {
             ...dataToSave,
-            balance: Number(localProfile.balance)
+            phoneNumber: canonicalPhone,
+            balance: activeBalance
         }, { merge: true });
-        setUserProfile(localProfile);
+        setUserProfile((prev: any) => ({ ...prev, ...dataToSave, phoneNumber: canonicalPhone, balance: activeBalance }));
         try {
-          localStorage.setItem('palmpay_user', JSON.stringify(localProfile));
+          localStorage.setItem('palmpay_user', JSON.stringify({ ...localProfile, phoneNumber: canonicalPhone, balance: activeBalance }));
         } catch (e) {}
         alert('Profile saved successfully!');
     } catch (error) {

@@ -3,17 +3,19 @@ import { X, Zap, Check, Copy, Loader2 } from 'lucide-react';
 import { db } from '../../lib/firebase';
 import { doc, collection, addDoc, setDoc, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
 import { generatePalmPayTransactionId, generatePalmPaySessionId, generatePalmPayRemark } from '../../utils/transactionFormat';
+import { normalizePhoneNumber } from '../../utils/account';
 import LoadingExecutionOverlay from '../LoadingExecutionOverlay';
 
 interface ElectricityModalProps {
   balance: number;
   setBalance: (b: number) => void;
+  setUserProfile?: React.Dispatch<React.SetStateAction<any>>;
   userProfile?: any;
   onClose: () => void;
   onSuccessTransaction?: (tx: any) => void;
 }
 
-export default function ElectricityModal({ balance, setBalance, userProfile, onClose, onSuccessTransaction }: ElectricityModalProps) {
+export default function ElectricityModal({ balance, setBalance, setUserProfile, userProfile, onClose, onSuccessTransaction }: ElectricityModalProps) {
   const [disco, setDisco] = useState('IKEDC (Ikeja Electric)');
   const [meterNumber, setMeterNumber] = useState('');
   const [amount, setAmount] = useState('2000');
@@ -37,7 +39,8 @@ export default function ElectricityModal({ balance, setBalance, userProfile, onC
     setIsProcessing(true);
     try {
       const generatedToken = `${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}`;
-      const userId = userProfile?.phoneNumber;
+      const rawUserId = userProfile?.phoneNumber;
+      const userId = normalizePhoneNumber(rawUserId) || rawUserId;
       const now = new Date();
       const txRef = `ELEC-${Date.now()}`;
       const authenticTxId = generatePalmPayTransactionId(now, txRef);
@@ -81,7 +84,11 @@ export default function ElectricityModal({ balance, setBalance, userProfile, onC
         }
       }
 
-      setBalance(balance - amt);
+      const newBal = balance - amt;
+      setBalance(newBal);
+      if (setUserProfile) {
+        setUserProfile((prev: any) => prev ? { ...prev, balance: newBal } : prev);
+      }
       setTokenResult(generatedToken);
 
       if (onSuccessTransaction) {

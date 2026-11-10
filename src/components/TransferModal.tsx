@@ -17,6 +17,7 @@ import BankLogo from './BankLogo';
 import { db } from '../lib/firebase';
 import { doc, addDoc, collection, setDoc, updateDoc, increment, serverTimestamp, getDoc } from 'firebase/firestore';
 import { formatNaira } from '../utils/format';
+import { normalizePhoneNumber } from '../utils/account';
 import {
   generatePalmPayTransactionId,
   generatePalmPaySessionId,
@@ -29,6 +30,7 @@ import LoadingExecutionOverlay from './LoadingExecutionOverlay';
 interface TransferModalProps {
   balance: number;
   setBalance: (b: number) => void;
+  setUserProfile?: React.Dispatch<React.SetStateAction<any>>;
   onClose: () => void;
   userProfile: any;
   onSuccessTransaction?: (tx: any) => void;
@@ -37,6 +39,7 @@ interface TransferModalProps {
 export default function TransferModal({
   balance,
   setBalance,
+  setUserProfile,
   onClose,
   userProfile,
   onSuccessTransaction,
@@ -180,7 +183,8 @@ export default function TransferModal({
   const executeTransfer = async (numAmount: number) => {
     setLoading(true);
     try {
-      const cleanPhone = userProfile.phoneNumber || '08082076038';
+      const rawPhone = userProfile.phoneNumber || '08082076038';
+      const cleanPhone = normalizePhoneNumber(rawPhone) || rawPhone;
       const userRef = doc(db, 'users', cleanPhone);
       const userSnap = await getDoc(userRef);
 
@@ -202,6 +206,9 @@ export default function TransferModal({
       });
 
       setBalance(newBal);
+      if (setUserProfile) {
+        setUserProfile((prev: any) => prev ? { ...prev, balance: newBal } : prev);
+      }
 
       const rawNow = new Date();
       const txRef = `TRSF-${Date.now()}`;

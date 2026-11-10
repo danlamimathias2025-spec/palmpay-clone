@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { X, Check, Copy, ChevronRight, Headphones, Landmark, ArrowLeft, ArrowDownToLine, Sparkles, User, Building2, HelpCircle, Phone, ArrowLeftRight, CreditCard, Banknote } from 'lucide-react';
 import { db } from '../lib/firebase';
 import { doc, addDoc, collection, setDoc, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
-import { normalizePalmPayAccountNumber } from '../utils/account';
+import { normalizePalmPayAccountNumber, normalizePhoneNumber } from '../utils/account';
 import { formatNaira } from '../utils/format';
 import { generatePalmPayTransactionId, generatePalmPaySessionId, generatePalmPayRemark } from '../utils/transactionFormat';
 import LoadingExecutionOverlay from './LoadingExecutionOverlay';
@@ -11,6 +11,7 @@ import BankLogo from './BankLogo';
 interface AddFundsModalProps {
   balance: number;
   setBalance: (b: number) => void;
+  setUserProfile?: React.Dispatch<React.SetStateAction<any>>;
   userProfile: any;
   onClose: () => void;
   onSuccessTransaction?: (tx: any) => void;
@@ -20,6 +21,7 @@ interface AddFundsModalProps {
 export default function AddFundsModal({
   balance,
   setBalance,
+  setUserProfile,
   userProfile,
   onClose,
   onSuccessTransaction,
@@ -119,7 +121,8 @@ export default function AddFundsModal({
     };
 
     try {
-      const userId = userProfile?.phoneNumber;
+      const rawUserId = userProfile?.phoneNumber;
+      const userId = normalizePhoneNumber(rawUserId) || rawUserId;
       if (userId) {
         const userRef = doc(db, 'users', userId);
         const transactionsRef = collection(userRef, 'transactions');
@@ -133,7 +136,11 @@ export default function AddFundsModal({
       console.warn('Firestore fallback sync:', err);
     }
 
-    setBalance(balance + num);
+    const newBal = balance + num;
+    setBalance(newBal);
+    if (setUserProfile) {
+      setUserProfile((prev: any) => prev ? { ...prev, balance: newBal } : prev);
+    }
 
     if (onSuccessTransaction) {
       onSuccessTransaction(newTransaction);

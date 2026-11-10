@@ -3,11 +3,13 @@ import { X, ArrowDownUp, Check, Sparkles } from 'lucide-react';
 import { db } from '../lib/firebase';
 import { doc, collection, addDoc, setDoc, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
 import { formatNaira } from '../utils/format';
+import { normalizePhoneNumber } from '../utils/account';
 import LoadingExecutionOverlay from './LoadingExecutionOverlay';
 
 interface DataModalProps {
   balance: number;
   setBalance: (b: number) => void;
+  setUserProfile?: React.Dispatch<React.SetStateAction<any>>;
   userProfile: any;
   onClose: () => void;
   onSuccessTransaction?: (tx: any) => void;
@@ -16,6 +18,7 @@ interface DataModalProps {
 export default function DataModal({
   balance,
   setBalance,
+  setUserProfile,
   userProfile,
   onClose,
   onSuccessTransaction,
@@ -41,7 +44,8 @@ export default function DataModal({
 
     setIsProcessing(true);
     try {
-      const userId = userProfile?.phoneNumber;
+      const rawUserId = userProfile?.phoneNumber;
+      const userId = normalizePhoneNumber(rawUserId) || rawUserId;
       const newTx = {
         amount: selectedPlan.price,
         formattedAmount: `-₦${selectedPlan.price.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`,
@@ -71,7 +75,11 @@ export default function DataModal({
         }
       }
 
-      setBalance(balance - selectedPlan.price);
+      const newBal = balance - selectedPlan.price;
+      setBalance(newBal);
+      if (setUserProfile) {
+        setUserProfile((prev: any) => prev ? { ...prev, balance: newBal } : prev);
+      }
       if (onSuccessTransaction) {
         onSuccessTransaction(newTx);
       }

@@ -3,12 +3,14 @@ import { X, Smartphone, Check, Sparkles } from 'lucide-react';
 import { db } from '../lib/firebase';
 import { doc, collection, addDoc, setDoc, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
 import { formatNaira } from '../utils/format';
+import { normalizePhoneNumber } from '../utils/account';
 import { generatePalmPayTransactionId, generatePalmPaySessionId, generatePalmPayRemark } from '../utils/transactionFormat';
 import LoadingExecutionOverlay from './LoadingExecutionOverlay';
 
 interface AirtimeModalProps {
   balance: number;
   setBalance: (b: number) => void;
+  setUserProfile?: React.Dispatch<React.SetStateAction<any>>;
   userProfile: any;
   onClose: () => void;
   onSuccessTransaction?: (tx: any) => void;
@@ -17,6 +19,7 @@ interface AirtimeModalProps {
 export default function AirtimeModal({
   balance,
   setBalance,
+  setUserProfile,
   userProfile,
   onClose,
   onSuccessTransaction,
@@ -46,7 +49,8 @@ export default function AirtimeModal({
     try {
       const cashback = Math.round(amt * 0.03); // 3% cashback bonus
       const netDeduction = amt - cashback;
-      const userId = userProfile?.phoneNumber;
+      const rawUserId = userProfile?.phoneNumber;
+      const userId = normalizePhoneNumber(rawUserId) || rawUserId;
       const now = new Date();
       const txRef = `AIR-${Date.now()}`;
       const authenticTxId = generatePalmPayTransactionId(now, txRef);
@@ -93,7 +97,11 @@ export default function AirtimeModal({
         }
       }
 
-      setBalance(balance - netDeduction);
+      const newBal = balance - netDeduction;
+      setBalance(newBal);
+      if (setUserProfile) {
+        setUserProfile((prev: any) => prev ? { ...prev, balance: newBal } : prev);
+      }
       if (onSuccessTransaction) {
         onSuccessTransaction(newTx);
       }

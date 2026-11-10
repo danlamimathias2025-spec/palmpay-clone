@@ -1,8 +1,9 @@
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from './firebase';
+import { normalizePhoneNumber } from '../utils/account';
 
 export async function loginUser(phoneNumber: string, password: string) {
-  const cleanPhone = phoneNumber.trim().replace(/\D/g, '');
+  const cleanPhone = normalizePhoneNumber(phoneNumber) || phoneNumber.trim().replace(/\D/g, '');
   const userRef = doc(db, 'users', cleanPhone);
   const userSnap = await getDoc(userRef);
 
@@ -19,7 +20,7 @@ export async function loginUser(phoneNumber: string, password: string) {
 }
 
 export async function registerUser(userData: any) {
-  const cleanPhone = userData.phoneNumber.trim().replace(/\D/g, '');
+  const cleanPhone = normalizePhoneNumber(userData.phoneNumber) || userData.phoneNumber.trim().replace(/\D/g, '');
   const userRef = doc(db, 'users', cleanPhone);
   const userSnap = await getDoc(userRef);
 
@@ -36,3 +37,4 @@ export async function registerUser(userData: any) {
   await setDoc(userRef, newUserData);
   return newUserData;
 }
+

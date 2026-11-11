@@ -295,35 +295,24 @@ async function startServer() {
         message: "Account number is required to fetch user account name"
       });
     }
-    const isPalmPayCode = !bankCode || bankCode === "999991" || bankCode === "100033" || String(bankCode).toLowerCase().includes("palm") || bankCode === "999992" || bankCode === "default";
-    const resolvedUser = await resolvePalmPayUser(rawAccount);
-    if (resolvedUser) {
-      return res.json({
-        success: true,
-        status: true,
-        message: "Account resolved successfully",
-        account_name: resolvedUser.accountName,
-        account_number: resolvedUser.accountNumber,
-        bank_name: "PalmPay",
-        bank_code: "999991",
-        data: {
-          account_number: resolvedUser.accountNumber,
-          account_name: resolvedUser.accountName,
-          bank_code: "999991",
-          bank_id: 999991,
-          bank_name: "PalmPay"
-        }
-      });
+    const isPalmPayCode = !bankCode || bankCode === "999991" || bankCode === "100033" || String(bankCode).toLowerCase().includes("palm") || bankCode === "default";
+    const candidateBankCodes = [];
+    if (bankCode && !isPalmPayCode) {
+      candidateBankCodes.push(String(bankCode).trim());
+    } else {
+      candidateBankCodes.push("999991", "100033");
     }
     const apiKey = getBankApiKey(req);
     const clean10 = String(rawAccount).replace(/\D/g, "").slice(-10);
-    if (apiKey && clean10.length === 10) {
-      const candidateBankCodes = [];
-      if (bankCode && !isPalmPayCode) {
-        candidateBankCodes.push(String(bankCode).trim());
-      } else {
-        candidateBankCodes.push("999991", "100033");
-      }
+    if (!apiKey) {
+      return res.status(500).json({
+        success: false,
+        status: false,
+        error: "Configuration Error",
+        message: "Payment gateway key not configured. Unable to validate account."
+      });
+    }
+    if (clean10.length === 10) {
       for (const code of candidateBankCodes) {
         try {
           console.log(`[Paystack Resolution] Resolving account ${clean10} with bank code ${code}...`);
@@ -333,7 +322,9 @@ async function startServer() {
               headers: {
                 Authorization: `Bearer ${apiKey}`,
                 "Content-Type": "application/json"
-              }
+              },
+              // Add a reasonable timeout for fetch to detect network issues
+              signal: AbortSignal.timeout(1e4)
             }
           );
           const data = await response.json();
@@ -348,18 +339,32 @@ async function startServer() {
               bank_code: code,
               data: data.data
             });
+          } else {
+            if (data?.message && (data.message.includes("not found") || data.message.includes("Could not resolve"))) {
+              return res.status(404).json({
+                success: false,
+                status: false,
+                error: "Account not verified",
+                message: `The account number ${clean10} was not found on the bank directory. Please check the number and try again.`
+              });
+            }
           }
         } catch (err) {
-          console.warn(`[Paystack Resolution] Error for bank ${code}:`, err);
+          console.warn(`[Paystack Resolution] Network/Connection error for bank ${code}:`, err);
+          return res.status(503).json({
+            success: false,
+            status: false,
+            error: "Network Error",
+            message: "Unable to connect to the bank directory. Please check your internet connection and try again."
+          });
         }
       }
     }
-    const notFoundMsg = !apiKey ? `Account ${clean10 || rawAccount} not verified. Paystack key not detected or account does not exist.` : `Account ${clean10 || rawAccount} could not be resolved on Paystack. Please check the account number and bank.`;
     return res.status(404).json({
       success: false,
       status: false,
       error: "Account not verified",
-      message: notFoundMsg
+      message: `Account ${clean10 || rawAccount} could not be resolved. Please verify the account number and selected bank.`
     });
   };
   app.all("/api/resolve-palmpay", handleResolveAccount);

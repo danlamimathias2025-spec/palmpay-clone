@@ -123,6 +123,13 @@ async function generateAllIcons() {
   const valuesDir = path.join(resDir, 'values');
   if (!fs.existsSync(valuesDir)) fs.mkdirSync(valuesDir, { recursive: true });
 
+  // Prevent duplicate resource merge error in Gradle (AAPT2) by removing standalone ic_launcher_background.xml
+  const duplicateBgXml = path.join(valuesDir, 'ic_launcher_background.xml');
+  if (fs.existsSync(duplicateBgXml)) {
+    fs.unlinkSync(duplicateBgXml);
+    console.log('✓ Removed duplicate ic_launcher_background.xml to avoid Gradle resource collision');
+  }
+
   const colorsXml = `<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="ic_launcher_background">#ffffff</color>
@@ -132,6 +139,31 @@ async function generateAllIcons() {
 </resources>
 `;
   fs.writeFileSync(path.join(valuesDir, 'colors.xml'), colorsXml, 'utf8');
+
+  // Ensure styles.xml exists with AppTheme and AppTheme.NoActionBarLaunch
+  const stylesXmlPath = path.join(valuesDir, 'styles.xml');
+  if (!fs.existsSync(stylesXmlPath)) {
+    const stylesXml = `<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
+        <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
+        <item name="colorAccent">@color/colorAccent</item>
+    </style>
+
+    <style name="AppTheme.NoActionBar" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+        <item name="android:background">@null</item>
+    </style>
+
+    <style name="AppTheme.NoActionBarLaunch" parent="AppTheme.NoActionBar">
+        <item name="android:background">@color/ic_launcher_background</item>
+    </style>
+</resources>
+`;
+    fs.writeFileSync(stylesXmlPath, stylesXml, 'utf8');
+  }
 
   // Ensure strings.xml has authentic PalmPay branding
   const stringsXml = `<?xml version="1.0" encoding="utf-8"?>
